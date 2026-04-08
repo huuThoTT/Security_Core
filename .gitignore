@@ -1,0 +1,36 @@
+# Documentation and Reports
+*.pdf
+*.tex
+*.aux
+*.log
+*.toc
+*.out
+*.nav
+*.snm
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.md
+!README.md
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+
+# Security and Local Data
+keys/
+test_env/
+nonces.json
+advanced_audit.log
+test_results.log
+salt.bin
+
+# Python and System
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+.idea/
