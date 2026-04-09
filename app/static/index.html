@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AT-Wallet | Secure Core Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">AT-WALLET SECURITY</div>
+            <div id="status-badge" class="card" style="padding: 0.5rem 1rem; font-size: 0.8rem; color: var(--accent);">
+                ● CORE ACTIVE
+            </div>
+        </header>
+
+        <section class="dashboard-grid">
+            <div class="card hero-box">
+                <h1>Secure Your Digital Assets</h1>
+                <p style="color: var(--text-dim); margin-top: 1rem;">Powered by ECC-AES Hybrid Cryptography & Ed25519 Signatures.</p>
+                <div style="margin-top: 2rem;">
+                    <button onclick="scrollToSection('register')">Get Started</button>
+                    <button class="secondary" style="margin-left: 1rem;" onclick="scrollToSection('logs')">Audit Logs</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="stat-label">System Integrity</div>
+                <div class="stat-value">100%</div>
+                <div style="color: var(--accent); font-size: 0.8rem;">No breaches detected</div>
+            </div>
+            <div class="card">
+                <div class="stat-label">KDF Iterations</div>
+                <div class="stat-value">600K</div>
+                <div style="color: var(--text-dim); font-size: 0.8rem;">PBKDF2-HMAC-SHA256</div>
+            </div>
+            <div class="card">
+                <div class="stat-label">Security Alerts</div>
+                <div id="alert-count" class="stat-value">0</div>
+                <div style="color: #ef4444; font-size: 0.8rem;">Recent events</div>
+            </div>
+        </section>
+
+        <div class="main-content">
+            <div class="card" id="register">
+                <h3>User Registration & KeyGen</h3>
+                <p style="color: var(--text-dim); margin-bottom: 1.5rem; font-size: 0.9rem;">Generate your unique ECC keys protected by a Master Password.</p>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="reg-username" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Master Password</label>
+                    <input type="password" id="reg-password" placeholder="Create strong password">
+                </div>
+                <button onclick="registerUser()" style="width: 100%;">Initialize Security Core</button>
+            </div>
+
+            <div class="card" id="logs">
+                <h3>Live Audit Logs</h3>
+                <div id="log-container" style="max-height: 300px; overflow-y: auto; margin-top: 1rem;">
+                    <div class="log-item">Waiting for signals...</div>
+                </div>
+            </div>
+
+            <div class="card" style="grid-column: span 2;">
+                <h3>Secure Transfer (Envelope)</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+                    <div>
+                        <div class="form-group">
+                            <label>Recipient Username</label>
+                            <input type="text" id="tx-receiver" placeholder="e.g. Alice">
+                        </div>
+                        <div class="form-group">
+                            <label>Amount (AT-Coin)</label>
+                            <input type="number" id="tx-amount" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <label>Secure Message</label>
+                            <input type="text" id="tx-msg" placeholder="Optional private message">
+                        </div>
+                        <div class="form-group">
+                            <label>Unlock Master Key (Passphrase)</label>
+                            <input type="password" id="tx-pass" placeholder="Confirm your key">
+                        </div>
+                    </div>
+                </div>
+                <button onclick="sendTransfer()" style="width: 100%; margin-top: 1rem; background: linear-gradient(to right, var(--primary), var(--secondary));">Sign & Encrypt Transaction</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
