@@ -3,102 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AT-Wallet | Secure Core Dashboard</title>
+    <title>AT-Wallet | Secure Digital Pay</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">AT-WALLET SECURITY</div>
-            <div id="status-badge" class="card" style="padding: 0.5rem 1rem; font-size: 0.8rem; color: var(--accent);">
-                ● CORE ACTIVE
+    <div class="app-container">
+        <!-- AUTH SECTION (Show first) -->
+        <section id="view-auth" class="app-section active">
+            <div style="padding: 4rem 2rem 2rem; text-align: center;">
+                <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--primary);">AT-Wallet</h1>
+                <p style="color: var(--text-muted);">Secure Crypto-Wallet for everyone</p>
             </div>
-        </header>
-
-        <section class="dashboard-grid">
-            <div class="card hero-box">
-                <h1>Secure Your Digital Assets</h1>
-                <p style="color: var(--text-dim); margin-top: 1rem;">Powered by ECC-AES Hybrid Cryptography & Ed25519 Signatures.</p>
-                <div style="margin-top: 2rem;">
-                    <button onclick="scrollToSection('register')">Get Started</button>
-                    <button class="secondary" style="margin-left: 1rem;" onclick="scrollToSection('logs')">Audit Logs</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="stat-label">System Integrity</div>
-                <div class="stat-value">100%</div>
-                <div style="color: var(--accent); font-size: 0.8rem;">No breaches detected</div>
-            </div>
-            <div class="card">
-                <div class="stat-label">KDF Iterations</div>
-                <div class="stat-value">600K</div>
-                <div style="color: var(--text-dim); font-size: 0.8rem;">PBKDF2-HMAC-SHA256</div>
-            </div>
-            <div class="card">
-                <div class="stat-label">Security Alerts</div>
-                <div id="alert-count" class="stat-value">0</div>
-                <div style="color: #ef4444; font-size: 0.8rem;">Recent events</div>
-            </div>
-        </section>
-
-        <div class="main-content">
-            <div class="card" id="register">
-                <h3>User Registration & KeyGen</h3>
-                <p style="color: var(--text-dim); margin-bottom: 1.5rem; font-size: 0.9rem;">Generate your unique ECC keys protected by a Master Password.</p>
+            <div class="card-white" style="margin: 0 1.5rem;">
+                <h3>Get Started</h3>
                 <div class="form-group">
                     <label>Username</label>
-                    <input type="text" id="reg-username" placeholder="Enter username">
+                    <input type="text" id="reg-username" placeholder="Choose a username">
                 </div>
                 <div class="form-group">
                     <label>Master Password</label>
-                    <input type="password" id="reg-password" placeholder="Create strong password">
+                    <input type="password" id="reg-password" placeholder="Min. 8 characters">
                 </div>
-                <button onclick="registerUser()" style="width: 100%;">Initialize Security Core</button>
+                <button class="btn-primary" onclick="registerUser()">Initialize Wallet</button>
+                <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
+                    Your keys will be protected by 600K PBKDF2 rounds.
+                </p>
             </div>
+        </section>
 
-            <div class="card" id="logs">
-                <h3>Live Audit Logs</h3>
-                <div id="log-container" style="max-height: 300px; overflow-y: auto; margin-top: 1rem;">
-                    <div class="log-item">Waiting for signals...</div>
+        <!-- MAIN APP HEADER (Hidden until registered) -->
+        <header id="app-header" style="display: none;">
+            <div class="user-profile">
+                <div class="avatar" id="user-avatar">?</div>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Welcome back,</div>
+                    <div style="font-weight: 700;" id="display-username">User</div>
                 </div>
             </div>
+            <div id="security-shield" title="Security Active">🛡️</div>
+        </header>
 
-            <div class="card" style="grid-column: span 2;">
-                <h3>Secure Transfer (Envelope)</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
-                    <div>
-                        <div class="form-group">
-                            <label>Recipient Username</label>
-                            <input type="text" id="tx-receiver" placeholder="e.g. Alice">
-                        </div>
-                        <div class="form-group">
-                            <label>Amount (AT-Coin)</label>
-                            <input type="number" id="tx-amount" placeholder="0.00">
-                        </div>
-                    </div>
-                    <div>
-                        <div class="form-group">
-                            <label>Secure Message</label>
-                            <input type="text" id="tx-msg" placeholder="Optional private message">
-                        </div>
-                        <div class="form-group">
-                            <label>Unlock Master Key (Passphrase)</label>
-                            <input type="password" id="tx-pass" placeholder="Confirm your key">
-                        </div>
+        <!-- VIEW: HOME (Wallet Card) -->
+        <section id="view-home" class="app-section">
+            <div class="wallet-card-container">
+                <div class="atm-card">
+                    <div class="card-label">CURRENT BALANCE</div>
+                    <div class="card-balance">฿ 5,240.00</div>
+                    <div class="card-number">**** **** **** 2026</div>
+                    <div style="margin-top: 1rem; font-size: 0.75rem; opacity: 0.8; display: flex; justify-content: space-between;">
+                        <span>EXP: 12/29</span>
+                        <span style="letter-spacing: 1px;">VISA SECURE</span>
                     </div>
                 </div>
-                <button onclick="sendTransfer()" style="width: 100%; margin-top: 1rem; background: linear-gradient(to right, var(--primary), var(--secondary));">Sign & Encrypt Transaction</button>
             </div>
-        </div>
+
+            <div class="quick-actions">
+                <div class="action-btn" onclick="switchView('transfer')">
+                    <div class="action-icon">📤</div>
+                    <div class="action-label">Send</div>
+                </div>
+                <div class="action-btn">
+                    <div class="action-icon">📥</div>
+                    <div class="action-label">Request</div>
+                </div>
+                <div class="action-btn">
+                    <div class="action-icon">🔝</div>
+                    <div class="action-label">Top up</div>
+                </div>
+            </div>
+
+            <div style="padding: 0 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin-bottom: 0;">Recent Transactions</h3>
+                    <span style="font-size: 0.8rem; color: var(--primary); font-weight: 600; cursor: pointer;" onclick="switchView('history')">See all</span>
+                </div>
+                <div id="recent-tx-list">
+                    <!-- Recent items injected here -->
+                    <div class="card-white" style="display: flex; align-items: center; gap: 1rem; padding: 1rem;">
+                        <div style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center;">👤</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 0.9rem;">No transactions yet</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Start by sending some ฿</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: TRANSFER -->
+        <section id="view-transfer" class="app-section">
+            <div style="padding: 0 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+                    <button style="background: none; color: var(--text-main); font-size: 1.5rem; width: auto; padding: 0;" onclick="switchView('home')">←</button>
+                    <h2 style="font-size: 1.25rem;">Send Money</h2>
+                </div>
+                
+                <div class="card-white">
+                    <div class="form-group">
+                        <label>Recipient Username</label>
+                        <input type="text" id="tx-receiver" placeholder="Enter Bob, Alice...">
+                    </div>
+                    <div class="form-group">
+                        <label>Amount (฿)</label>
+                        <input type="number" id="tx-amount" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Transaction Message</label>
+                        <input type="text" id="tx-msg" placeholder="What's this for?">
+                    </div>
+                    <div class="form-group">
+                        <label>Unlock with Master Password</label>
+                        <input type="password" id="tx-pass" placeholder="Verify identity">
+                    </div>
+                    <button class="btn-primary" onclick="sendTransfer()">Sign & Send Securely</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: HISTORY / LOGS -->
+        <section id="view-history" class="app-section">
+            <div style="padding: 0 1rem;">
+                <h2 style="margin-bottom: 1.5rem;">Activity History</h2>
+                <div class="card-white log-card" id="log-container">
+                    <!-- Logs will be injected here -->
+                    <div class="log-entry">Searching for security events...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: SECURITY DIAGNOSTICS -->
+        <section id="view-security" class="app-section">
+            <div style="padding: 0 1rem;">
+                <h2 style="margin-bottom: 1.5rem;">Security Diagnostics</h2>
+                
+                <!-- ATTACK SIMULATOR -->
+                <div class="card-white">
+                    <h3 style="margin-bottom: 1rem; color: var(--danger);">Adversarial Simulation</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                        Test system resilience by manually triggering attacks on existing transactions.
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <button class="btn-outline" onclick="simulateAttack('REPLAY')">🔄 Replay last TX</button>
+                        <button class="btn-outline" onclick="simulateAttack('TAMPER')">🛠️ Tamper Payload</button>
+                        <button class="btn-outline" onclick="simulateAttack('FORGERY')" style="grid-column: span 2;">✍️ Forge Digital Signature</button>
+                    </div>
+                </div>
+
+                <!-- PERFORMANCE BENCHMARK -->
+                <div class="card-white" style="margin-top: 1.5rem;">
+                    <h3>System Benchmarking</h3>
+                    <button class="btn-primary" onclick="runBenchmark()" id="btn-run-benchmark">Run Performance Profile</button>
+                    <div id="benchmark-results" style="margin-top: 1.5rem; display: none;">
+                        <div class="benchmark-pills">
+                            <div class="pill">
+                                <span>PBKDF2 (600K)</span>
+                                <strong id="bench-pbkdf2">...</strong>
+                            </div>
+                            <div class="pill">
+                                <span>X25519 ECDH</span>
+                                <strong id="bench-ecdh">...</strong>
+                            </div>
+                            <div class="pill">
+                                <span>AES-GCM (1MB)</span>
+                                <strong id="bench-aes">...</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM NAV -->
+        <nav class="bottom-nav" id="main-nav" style="display: none;">
+            <div class="nav-item active" onclick="switchView('home', this)">
+                <div class="nav-icon">🏠</div>
+                <div class="nav-label">Home</div>
+            </div>
+            <div class="nav-item" onclick="switchView('transfer', this)">
+                <div class="nav-icon">💸</div>
+                <div class="nav-label">Send</div>
+            </div>
+            <div class="nav-item" onclick="switchView('history', this)">
+                <div class="nav-icon">📜</div>
+                <div class="nav-label">History</div>
+            </div>
+            <div class="nav-item" onclick="switchView('security', this)">
+                <div class="nav-icon">🛡️</div>
+                <div class="nav-label">Security</div>
+            </div>
+        </nav>
     </div>
 
     <script src="script.js"></script>
-    <script>
-        function scrollToSection(id) {
-            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
-        }
-    </script>
 </body>
 </html>
