@@ -1,5 +1,6 @@
 import time
 import os
+import json
 from Crypto.PublicKey import ECC
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
@@ -49,30 +50,52 @@ class AdvancedSecurityEncryptor:
         master_key = HKDF(shared_secret, 64, b"AT-Wallet-Salt", SHA256)
         return master_key[:32], master_key[32:]
 
-    def encrypt_and_sign(self, data, sender_sig_priv_path, sender_kex_priv_path, receiver_kex_pub_path, passphrase=None, salt_path="keys/salt.bin"):
-        # 1. Load Keys (handle encryption)
+    def encrypt_and_sign(self, data: bytes, sender_sig_priv_path: str, receiver_kex_pub_path: str, passphrase: str = None, salt_path: str = "keys/salt.bin", aad: bytes = None):
+        """
+        Encrypt payload with AES-GCM (AAD supported) and sign the final envelope+aad.
+        Returns envelope bytes and signature and separated nonce/tag for DB storage.
+        """
+        # 1. Load Signing Key (handle encryption)
         sig_priv = self._load_private_key(sender_sig_priv_path, passphrase, salt_path)
-        kex_priv = self._load_private_key(sender_kex_priv_path, passphrase, salt_path)
         
-        # 2. ECDH to get session keys
-        enc_key, _ = self.perform_ecdh_hkdf(kex_priv, receiver_kex_pub_path)
+        # 2. PERFECT FORWARD SECRECY (PFS)
+        # Generate Ephemeral Session Keypair for this transaction only
+        ephemeral_key = ECC.generate(curve='curve25519')
+        ephemeral_pub_pem = ephemeral_key.public_key().export_key(format='PEM')
+        
+        # 3. ECDH to get session keys using Ephemeral Private X Static Receiver Public
+        enc_key, _ = self.perform_ecdh_hkdf(ephemeral_key, receiver_kex_pub_path)
         
         # 3. Add Timestamp for Freshness
         timestamp = int(time.time())
         payload = timestamp.to_bytes(8, 'big') + data
         
-        # 4. Symmetric Encryption (AES-GCM)
+        # 4. Symmetric Encryption (AES-GCM) with AAD support
         cipher = AES.new(enc_key, AES.MODE_GCM)
+        if aad:
+            # ensure bytes
+            if isinstance(aad, str):
+                aad_bytes = aad.encode()
+            else:
+                aad_bytes = aad
+            cipher.update(aad_bytes)
+        else:
+            aad_bytes = b""
         ciphertext, tag = cipher.encrypt_and_digest(payload)
         
-        # 5. EdDSA Signature (Ed25519)
+        # 5. EdDSA Signature over (nonce || tag || ciphertext || aad)
         signer = eddsa.new(sig_priv, 'rfc8032')
-        signature = signer.sign(data)
+        signed_blob = cipher.nonce + tag + ciphertext + aad_bytes
+        signature = signer.sign(signed_blob)
         
-        self._log_event("ADVANCED_INFO", f"Data encrypted and signed. Nonce: {cipher.nonce.hex()}")
+        self._log_event("PFS_INFO", f"Data encrypted with Ephemeral ECDHE. Nonce: {cipher.nonce.hex()}")
         return {
             "envelope": cipher.nonce + tag + ciphertext,
-            "signature": signature
+            "signature": signature,
+            "nonce": cipher.nonce,
+            "tag": tag,
+            "ephemeral_pub": ephemeral_pub_pem,
+            "aad": aad_bytes
         }
 
 if __name__ == "__main__":

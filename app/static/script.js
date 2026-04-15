@@ -1,7 +1,41 @@
 // State
 let currentUser = null;
+let authMode = 'login';
+
+// API Base configuration for cross-origin development (e.g., Live Server on 5501)
+const API_BASE = (window.location.port === '5501' || window.location.port === '5500') 
+    ? 'http://127.0.0.1:8000' 
+    : '';
 
 // Navigation
+function toggleAuthMode(mode) {
+    authMode = mode;
+    document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+    document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+    
+    const title = document.getElementById('auth-title');
+    const btn = document.getElementById('auth-btn');
+    const desc = document.getElementById('auth-desc');
+    
+    if (mode === 'login') {
+        title.innerText = 'Unlock Wallet';
+        btn.innerText = 'Unlock Now';
+        desc.innerText = 'Enter your master password to decrypt your wallet keys.';
+    } else {
+        title.innerText = 'Initialize Wallet';
+        btn.innerText = 'Create Secure Wallet';
+        desc.innerText = 'Your keys will be protected by 600K PBKDF2 rounds.';
+    }
+}
+
+function handleAuth() {
+    if (authMode === 'login') {
+        loginUser();
+    } else {
+        registerUser();
+    }
+}
+
 function switchView(viewId, navEl) {
     // Hide all sections
     document.querySelectorAll('.app-section').forEach(s => s.classList.remove('active'));
@@ -27,9 +61,37 @@ function switchView(viewId, navEl) {
 }
 
 // Actions
+async function loginUser() {
+    const username = document.getElementById('auth-username').value;
+    const password = document.getElementById('auth-password').value;
+
+    if (!username || !password) {
+        alert("Enter your credentials to unlock your wallet.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (response.ok) {
+            currentUser = await response.json();
+            loginSuccess();
+        } else {
+            const err = await response.json();
+            alert("Security Portal: " + (err.detail || "Authentication Failed."));
+        }
+    } catch (e) {
+        alert("Security core connection lost.");
+    }
+}
+
 async function registerUser() {
-    const username = document.getElementById('reg-username').value;
-    const password = document.getElementById('reg-password').value;
+    const username = document.getElementById('auth-username').value;
+    const password = document.getElementById('auth-password').value;
 
     if (!username || !password) {
         alert("Enter a username and password to create your secure wallet.");
@@ -37,7 +99,7 @@ async function registerUser() {
     }
 
     try {
-        const response = await fetch('/api/register', {
+        const response = await fetch(`${API_BASE}/api/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -82,7 +144,7 @@ async function sendTransfer() {
     }
 
     try {
-        const response = await fetch('/api/transfer', {
+        const response = await fetch(`${API_BASE}/api/transfer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -109,7 +171,7 @@ async function sendTransfer() {
 
 async function fetchLogs() {
     try {
-        const response = await fetch('/api/logs');
+        const response = await fetch(`${API_BASE}/api/logs`);
         const logs = await response.json();
         const container = document.getElementById('log-container');
         
@@ -146,7 +208,7 @@ async function runBenchmark() {
     resultsDiv.style.display = 'none';
 
     try {
-        const response = await fetch('/api/test/benchmark');
+        const response = await fetch(`${API_BASE}/api/test/benchmark`);
         const data = await response.json();
         
         document.getElementById('bench-pbkdf2').innerText = data.pbkdf2_time + "s";
@@ -168,7 +230,7 @@ async function simulateAttack(type) {
     }
 
     try {
-        const response = await fetch(`/api/test/attack?type=${type}`, {
+        const response = await fetch(`${API_BASE}/api/test/attack?type=${type}`, {
             method: 'POST'
         });
         

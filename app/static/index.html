@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="app-container">
         <!-- AUTH SECTION (Show first) -->
@@ -16,18 +18,24 @@
                 <p style="color: var(--text-muted);">Secure Crypto-Wallet for everyone</p>
             </div>
             <div class="card-white" style="margin: 0 1.5rem;">
-                <h3>Get Started</h3>
+                <div class="auth-tabs">
+                    <div class="auth-tab active" id="tab-login" onclick="toggleAuthMode('login')">Login</div>
+                    <div class="auth-tab" id="tab-register" onclick="toggleAuthMode('register')">Register</div>
+                </div>
+
+                <h3 id="auth-title" style="margin-top: 1rem;">Unlock Wallet</h3>
                 <div class="form-group">
                     <label>Username</label>
-                    <input type="text" id="reg-username" placeholder="Choose a username">
+                    <input type="text" id="auth-username" placeholder="Your username">
                 </div>
                 <div class="form-group">
                     <label>Master Password</label>
-                    <input type="password" id="reg-password" placeholder="Min. 8 characters">
+                    <input type="password" id="auth-password" placeholder="Master Password">
                 </div>
-                <button class="btn-primary" onclick="registerUser()">Initialize Wallet</button>
-                <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
-                    Your keys will be protected by 600K PBKDF2 rounds.
+                <button class="btn-primary" id="auth-btn" onclick="handleAuth()">Unlock Now</button>
+                <p id="auth-desc"
+                    style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
+                    Enter your master password to decrypt your wallet keys.
                 </p>
             </div>
         </section>
@@ -51,7 +59,8 @@
                     <div class="card-label">CURRENT BALANCE</div>
                     <div class="card-balance">฿ 5,240.00</div>
                     <div class="card-number">**** **** **** 2026</div>
-                    <div style="margin-top: 1rem; font-size: 0.75rem; opacity: 0.8; display: flex; justify-content: space-between;">
+                    <div
+                        style="margin-top: 1rem; font-size: 0.75rem; opacity: 0.8; display: flex; justify-content: space-between;">
                         <span>EXP: 12/29</span>
                         <span style="letter-spacing: 1px;">VISA SECURE</span>
                     </div>
@@ -76,12 +85,15 @@
             <div style="padding: 0 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h3 style="margin-bottom: 0;">Recent Transactions</h3>
-                    <span style="font-size: 0.8rem; color: var(--primary); font-weight: 600; cursor: pointer;" onclick="switchView('history')">See all</span>
+                    <span style="font-size: 0.8rem; color: var(--primary); font-weight: 600; cursor: pointer;"
+                        onclick="switchView('history')">See all</span>
                 </div>
                 <div id="recent-tx-list">
                     <!-- Recent items injected here -->
                     <div class="card-white" style="display: flex; align-items: center; gap: 1rem; padding: 1rem;">
-                        <div style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center;">👤</div>
+                        <div
+                            style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            👤</div>
                         <div style="flex: 1;">
                             <div style="font-weight: 600; font-size: 0.9rem;">No transactions yet</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">Start by sending some ฿</div>
@@ -95,10 +107,12 @@
         <section id="view-transfer" class="app-section">
             <div style="padding: 0 1rem;">
                 <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
-                    <button style="background: none; color: var(--text-main); font-size: 1.5rem; width: auto; padding: 0;" onclick="switchView('home')">←</button>
+                    <button
+                        style="background: none; color: var(--text-main); font-size: 1.5rem; width: auto; padding: 0;"
+                        onclick="switchView('home')">←</button>
                     <h2 style="font-size: 1.25rem;">Send Money</h2>
                 </div>
-                
+
                 <div class="card-white">
                     <div class="form-group">
                         <label>Recipient Username</label>
@@ -136,7 +150,7 @@
         <section id="view-security" class="app-section">
             <div style="padding: 0 1rem;">
                 <h2 style="margin-bottom: 1.5rem;">Security Diagnostics</h2>
-                
+
                 <!-- ATTACK SIMULATOR -->
                 <div class="card-white">
                     <h3 style="margin-bottom: 1rem; color: var(--danger);">Adversarial Simulation</h3>
@@ -146,14 +160,16 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <button class="btn-outline" onclick="simulateAttack('REPLAY')">🔄 Replay last TX</button>
                         <button class="btn-outline" onclick="simulateAttack('TAMPER')">🛠️ Tamper Payload</button>
-                        <button class="btn-outline" onclick="simulateAttack('FORGERY')" style="grid-column: span 2;">✍️ Forge Digital Signature</button>
+                        <button class="btn-outline" onclick="simulateAttack('FORGERY')" style="grid-column: span 2;">✍️
+                            Forge Digital Signature</button>
                     </div>
                 </div>
 
                 <!-- PERFORMANCE BENCHMARK -->
                 <div class="card-white" style="margin-top: 1.5rem;">
                     <h3>System Benchmarking</h3>
-                    <button class="btn-primary" onclick="runBenchmark()" id="btn-run-benchmark">Run Performance Profile</button>
+                    <button class="btn-primary" onclick="runBenchmark()" id="btn-run-benchmark">Run Performance
+                        Profile</button>
                     <div id="benchmark-results" style="margin-top: 1.5rem; display: none;">
                         <div class="benchmark-pills">
                             <div class="pill">
@@ -197,4 +213,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

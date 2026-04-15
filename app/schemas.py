@@ -27,13 +27,14 @@ class TransactionCreate(BaseModel):
     amount: float
     message: Optional[str] = ""
     passphrase: str
+    totp_code: Optional[str] = None
 
 class TransactionResponse(BaseModel):
     id: str
     sender_id: str
     receiver_id: str
     timestamp: datetime
-    status: str = "Verified"
+    tx_status: str  # matches models.Transaction.tx_status
     class Config:
         from_attributes = True
 
