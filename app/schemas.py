@@ -45,3 +45,16 @@ class SecurityLogResponse(BaseModel):
     timestamp: datetime
     class Config:
         from_attributes = True
+
+class WalletBalanceResponse(BaseModel):
+    balance: float
+
+class TransactionHistoryItem(BaseModel):
+    id: str
+    sender_username: str
+    receiver_username: str
+    amount: float
+    message: Optional[str]
+    timestamp: datetime
+    tx_status: str
+    is_sender: bool

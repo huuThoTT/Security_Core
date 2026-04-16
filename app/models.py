@@ -55,6 +55,7 @@ class Transaction(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     sender_id = Column(String, ForeignKey("users.id"))
     receiver_id = Column(String, ForeignKey("users.id"))
+    amount = Column(Float, default=0.0) # Numeric amount for easy listing
     encrypted_payload = Column(Text) # GCM Ciphertext hex
     auth_tag = Column(String) # GCM Tag hex
     nonce = Column(String, index=True) # GCM Nonce hex

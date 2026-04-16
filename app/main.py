@@ -41,6 +41,68 @@ decryptor = AdvancedSecurityDecryptor(log_file="advanced_audit.log")
 # Create DB tables if not exist
 models.Base.metadata.create_all(bind=engine)
 
+# Setup Argon2 and JWT configs
+ph = PasswordHasher()
+
+def seed_initial_data():
+    db = SessionLocal()
+    try:
+        # 1. Seed ADMIN
+        admin_user = db.query(models.User).filter(models.User.username == "admin").first()
+        admin_hash = ph.hash("admin123")
+        if not admin_user:
+            totp_secret = pyotp.random_base32()
+            admin_user = models.User(username="admin", password_hash=admin_hash, salt="ARGON2", totp_secret=totp_secret, totp_enabled=False, role="Admin")
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+            db.add(models.Wallet(user_id=admin_user.id, encrypted_balance="10000.0"))
+            user_key_dir = os.path.join("keys", "admin")
+            os.makedirs(user_key_dir, exist_ok=True)
+            generate_user_keys(output_dir=user_key_dir, passphrase="admin123")
+            with open(os.path.join(user_key_dir, "sig_public.pem"), "r") as f: pub_sig = f.read()
+            with open(os.path.join(user_key_dir, "kex_public.pem"), "r") as f: pub_kex = f.read()
+            db.add(models.KeyStore(user_id=admin_user.id, pubkey_sig=pub_sig, pubkey_kex=pub_kex))
+            db.commit()
+            print("[INFO] Admin provisioned (pw: admin123)")
+        else:
+            admin_user.password_hash = admin_hash
+            admin_user.role = "Admin"
+            db.commit()
+
+        # 2. Seed TEST USER (for wallet UI testing)
+        test_user = db.query(models.User).filter(models.User.username == "user123").first()
+        test_hash = ph.hash("user123")
+        if not test_user:
+            totp_secret = pyotp.random_base32()
+            test_user = models.User(username="user123", password_hash=test_hash, salt="ARGON2", totp_secret=totp_secret, totp_enabled=False, role="User")
+            db.add(test_user)
+            db.commit()
+            db.refresh(test_user)
+            db.add(models.Wallet(user_id=test_user.id, encrypted_balance="5000.0"))
+            user_key_dir = os.path.join("keys", "user123")
+            os.makedirs(user_key_dir, exist_ok=True)
+            generate_user_keys(output_dir=user_key_dir, passphrase="user123")
+            with open(os.path.join(user_key_dir, "sig_public.pem"), "r") as f: pub_sig = f.read()
+            with open(os.path.join(user_key_dir, "kex_public.pem"), "r") as f: pub_kex = f.read()
+            db.add(models.KeyStore(user_id=test_user.id, pubkey_sig=pub_sig, pubkey_kex=pub_kex))
+            db.commit()
+            print("[INFO] Test User 'user123' provisioned (pw: user123)")
+        else:
+            test_user.password_hash = test_hash
+            # Force reset balance for demo purpose
+            wallet = db.query(models.Wallet).filter(models.Wallet.user_id == test_user.id).first()
+            if wallet:
+                wallet.encrypted_balance = "5000.0"
+            db.commit()
+            print("[INFO] Test User 'user123' balance reset to 5000.0")
+
+    except Exception as e:
+        print("[ERROR] Seeding failed:", e)
+    finally:
+        db.close()
+
+seed_initial_data()
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="AT-Wallet Security Core API")
@@ -51,7 +113,6 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Setup Argon2 and JWT configs
-ph = PasswordHasher()
 SECRET_KEY = "my_super_secret_thesis_key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -101,13 +162,16 @@ def register(request: Request, user: schemas.UserCreate, db: Session = Depends(g
     pwd_hash = ph.hash(user.password)
     # Generate TOTP Secret base32
     totp_secret = pyotp.random_base32()
-    
+    # Grant Admin role if username is admin
+    user_role = "Admin" if user.username.lower() == "admin" else "User"
+
     new_user = models.User(
         username=user.username, 
         password_hash=pwd_hash, 
         salt="ARGON2", 
         totp_secret=totp_secret, 
-        totp_enabled=False
+        totp_enabled=False,
+        role=user_role
     )
     db.add(new_user)
     db.commit()
@@ -136,7 +200,7 @@ def register(request: Request, user: schemas.UserCreate, db: Session = Depends(g
     totp_uri = pyotp.totp.TOTP(totp_secret).provisioning_uri(name=user.username, issuer_name="AT-Wallet Secure")
     
     return {
-        "user": {"id": new_user.id, "username": new_user.username},
+        "user": {"id": new_user.id, "username": new_user.username, "role": new_user.role},
         "totp_secret": totp_secret,
         "totp_uri": totp_uri
     }
@@ -177,7 +241,7 @@ def login(request: Request, user: schemas.UserCreate, db: Session = Depends(get_
     return {
         "access_token": access_token, 
         "token_type": "bearer", 
-        "user": {"id": db_user.id, "username": db_user.username},
+        "user": {"id": db_user.id, "username": db_user.username, "role": db_user.role},
         "totp_enabled": db_user.totp_enabled,
         "totp_secret": db_user.totp_secret
     }
@@ -238,14 +302,32 @@ def transfer(request: Request, tx: schemas.TransactionCreate, current_user: mode
             id=tx_id,
             sender_id=sender.id,
             receiver_id=receiver.id,
+            amount=tx.amount,
             encrypted_payload=result["envelope"].hex(),
             auth_tag=result["tag"].hex(),
             nonce=result["nonce"].hex(),
             signature=result["signature"].hex(),
             ephemeral_pub=result["ephemeral_pub"],
             aad=json.dumps(aad_obj),
-            tx_status="Pending"
+            tx_status="Verified" # Mark as verified immediately on success
         )
+        
+        # Balance Update Logic
+        sender_wallet = db.query(models.Wallet).filter(models.Wallet.user_id == sender.id).first()
+        receiver_wallet = db.query(models.Wallet).filter(models.Wallet.user_id == receiver.id).first()
+        
+        if sender_wallet and receiver_wallet:
+            s_bal = float(sender_wallet.encrypted_balance)
+            r_bal = float(receiver_wallet.encrypted_balance)
+            
+            if s_bal < tx.amount:
+                 raise Exception("Sufficient funds not available in wallet.")
+            
+            sender_wallet.encrypted_balance = str(s_bal - tx.amount)
+            receiver_wallet.encrypted_balance = str(r_bal + tx.amount)
+            sender_wallet.last_updated = datetime.utcnow()
+            receiver_wallet.last_updated = datetime.utcnow()
+
         db.add(new_tx)
         db.commit()
         db.refresh(new_tx)
@@ -260,6 +342,79 @@ def transfer(request: Request, tx: schemas.TransactionCreate, current_user: mode
 @app.get("/api/logs", response_model=List[schemas.SecurityLogResponse])
 def get_logs(db: Session = Depends(get_db)):
     return db.query(models.SecurityLog).order_by(models.SecurityLog.timestamp.desc()).all()
+
+@app.get("/api/wallet/balance", response_model=schemas.WalletBalanceResponse)
+def get_balance(current_user: models.User = Depends(get_current_user_from_token), db: Session = Depends(get_db)):
+    wallet = db.query(models.Wallet).filter(models.Wallet.user_id == current_user.id).first()
+    return {"balance": float(wallet.encrypted_balance) if wallet else 0.0}
+
+@app.get("/api/transactions/history", response_model=List[schemas.TransactionHistoryItem])
+def get_transaction_history(current_user: models.User = Depends(get_current_user_from_token), db: Session = Depends(get_db)):
+    txs = db.query(models.Transaction).filter(
+        (models.Transaction.sender_id == current_user.id) | (models.Transaction.receiver_id == current_user.id)
+    ).order_by(models.Transaction.timestamp.desc()).all()
+    
+    results = []
+    for tx in txs:
+        sender = db.query(models.User).filter(models.User.id == tx.sender_id).first()
+        receiver = db.query(models.User).filter(models.User.id == tx.receiver_id).first()
+        
+        # Determine if current user is sender or receiver
+        is_sender = (tx.sender_id == current_user.id)
+        
+        results.append({
+            "id": tx.id,
+            "sender_username": sender.username if sender else "Unknown",
+            "receiver_username": receiver.username if receiver else "Unknown",
+            "amount": tx.amount,
+            "message": "Encrypted Content" if is_sender else "Received SecP256k1 Payload", # Mocking for demo
+            "timestamp": tx.timestamp,
+            "tx_status": tx.tx_status,
+            "is_sender": is_sender
+        })
+    return results
+
+# --- ADMIN MANAGEMENT ENDPOINTS ---
+
+@app.get("/api/admin/users")
+def get_all_users(db: Session = Depends(get_db)):
+    # Note: Bypassing strict Role checks for demo/thesis presentation purposes
+    users = db.query(models.User).order_by(models.User.created_at.desc()).all()
+    results = []
+    for u in users:
+        keys = db.query(models.KeyStore).filter(models.KeyStore.user_id == u.id).first()
+        results.append({
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "totp_enabled": u.totp_enabled,
+            "locked_until": u.locked_until.isoformat() if u.locked_until else None,
+            "failed_login_count": u.failed_login_count,
+            "keys_status": keys.status if keys else "Missing",
+            "keys_revoked": keys.revoked if keys else False
+        })
+    return {"users": results}
+
+@app.post("/api/admin/unlock/{user_id}")
+def unlock_user(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        user.locked_until = None
+        user.failed_login_count = 0
+        db.commit()
+        return {"msg": f"Account {user.username} unlocked."}
+    raise HTTPException(status_code=404, detail="User not found")
+
+@app.post("/api/admin/revoke/{user_id}")
+def revoke_keys(user_id: str, db: Session = Depends(get_db)):
+    keys = db.query(models.KeyStore).filter(models.KeyStore.user_id == user_id).first()
+    if keys:
+        keys.revoked = True
+        keys.status = "Revoked"
+        db.commit()
+        return {"msg": "Cryptographic Keys revoked."}
+    raise HTTPException(status_code=404, detail="Keys not found")
 
 # --- SECURITY TESTING CENTER ENDPOINTS ---
 

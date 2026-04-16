@@ -40,6 +40,19 @@
             </div>
         </section>
 
+        <!-- VIEW: SECURE SETUP -->
+        <section id="view-setup" class="app-section">
+            <div style="padding: 2rem 1.5rem 2rem; text-align: center;">
+                <h2 style="margin-bottom: 1rem;">Thiết lập Danh tính</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">Tài khoản của bạn đã được mã hóa bằng Argon2. Để bảo mật tối đa, vui lòng quét mã QR sau bằng Google Authenticator làm lớp Mật khẩu cấp 2 (2FA).</p>
+                <div class="card-white">
+                    <img id="totp-qr" src="" style="width: 150px; height: 150px; margin: 0 auto; display: block;" alt="2FA QR">
+                    <div style="margin-top: 1rem; font-weight: bold; letter-spacing: 2px" id="totp-secret-text">XXXXX</div>
+                </div>
+                <button class="btn-primary" style="margin-top: 2rem;" onclick="toggleAuthMode('login'); switchView('auth')">Tôi đã lưu khóa (Trở về Đăng nhập)</button>
+            </div>
+        </section>
+
         <!-- MAIN APP HEADER (Hidden until registered) -->
         <header id="app-header" style="display: none;">
             <div class="user-profile">
@@ -47,6 +60,7 @@
                 <div>
                     <div style="font-size: 0.75rem; color: var(--text-muted);">Welcome back,</div>
                     <div style="font-weight: 700;" id="display-username">User</div>
+                    <div style="font-size: 0.7rem; color: var(--danger); cursor: pointer; text-decoration: underline;" onclick="logoutUser()">Logout</div>
                 </div>
             </div>
             <div id="security-shield" title="Security Active">🛡️</div>
@@ -127,10 +141,10 @@
                         <input type="text" id="tx-msg" placeholder="What's this for?">
                     </div>
                     <div class="form-group">
-                        <label>Unlock with Master Password</label>
+                        <label>Mật khẩu đăng nhập (Master Password)</label>
                         <input type="password" id="tx-pass" placeholder="Verify identity">
                     </div>
-                    <button class="btn-primary" onclick="sendTransfer()">Sign & Send Securely</button>
+                    <button id="btn-transfer" class="btn-primary" onclick="sendTransfer()">Sign & Send Securely</button>
                 </div>
             </div>
         </section>
@@ -186,6 +200,28 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: ADMIN PANEL -->
+        <section id="view-admin" class="app-section">
+            <div style="padding: 0 1rem;">
+                <h2 style="margin-bottom: 1.5rem;">System Administration</h2>
+                <div class="card-white" style="overflow-x: auto; padding: 1rem 0;">
+                    <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 0.85rem;" id="admin-table">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #e2e8f0; color: var(--text-muted);">
+                                <th style="padding: 0.5rem 1rem;">User</th>
+                                <th style="padding: 0.5rem 1rem;">Brute-force Status</th>
+                                <th style="padding: 0.5rem 1rem;">Key Integrity</th>
+                                <th style="padding: 0.5rem 1rem;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-users-table">
+                            <tr><td colspan="4" style="text-align: center; padding: 1rem;">Loading security directory...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
