@@ -8,7 +8,9 @@ class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     username = Column(String, unique=True, index=True)
-    password_hash = Column(String) # Argon2 / PBKDF2
+    password_hash = Column(String) # For Login
+    payment_pin_hash = Column(String, nullable=True) # For Transactions (6-digit PIN)
+    mnemonic_hash = Column(String, nullable=True) # For account recovery (12-word phrase)
     salt = Column(String)  # per-user salt (hex)
     
     # 2FA Fields
@@ -89,3 +91,10 @@ class SecurityLog(Base):
 
     # relationship backref
     actor = relationship("User", primaryjoin="User.id==SecurityLog.actor_user_id", backref="security_events")
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"))
+    otp_hash = Column(String)
+    expires_at = Column(DateTime)

@@ -34,3 +34,7 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+*.db
+*.sqlite3
+*.log
+*.json

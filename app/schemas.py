@@ -7,6 +7,22 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    payment_pin: str # 6-digit numeric PIN recommended
+
+class UserLogin(UserBase):
+    password: str
+
+class UserChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+class ForgotPasswordRequest(BaseModel):
+    username: str
+
+class UserResetPassword(BaseModel):
+    username: str
+    otp_code: str # 6-digit code
+    new_password: str
 
 class UserResponse(UserBase):
     id: str
@@ -26,7 +42,7 @@ class TransactionCreate(BaseModel):
     receiver_username: str
     amount: float
     message: Optional[str] = ""
-    passphrase: str
+    payment_pin: str
     totp_code: Optional[str] = None
 
 class TransactionResponse(BaseModel):
@@ -58,3 +74,12 @@ class TransactionHistoryItem(BaseModel):
     timestamp: datetime
     tx_status: str
     is_sender: bool
+
+class PaymentRequestCreate(BaseModel):
+    target_username: str
+    amount: float
+    message: Optional[str] = ""
+
+class PaymentRequestFulfill(BaseModel):
+    payment_pin: str
+    totp_code: Optional[str] = None

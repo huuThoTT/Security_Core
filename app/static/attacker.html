@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AT-Wallet — Mô Phỏng Tấn Công</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6c47ff;
+            --danger:  #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --info:    #3b82f6;
+            --bg:      #f8fafc;
+            --card:    #ffffff;
+            --border:  #e2e8f0;
+            --text:    #1e293b;
+            --muted:   #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        header .badge {
+            background: #fee2e2;
+            color: #dc2626;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        header h1 { font-size: 1.1rem; font-weight: 700; }
+        header p  { font-size: 0.8rem; color: var(--muted); margin-top: 0.1rem; }
+
+        header a {
+            margin-left: auto;
+            font-size: 0.85rem;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .container { max-width: 860px; margin: 2rem auto; padding: 0 1.5rem; }
+
+        .intro-card {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 1rem;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: #1e40af;
+            line-height: 1.6;
+        }
+
+        .intro-card strong { font-weight: 600; }
+
+        /* Steps */
+        .steps { display: flex; flex-direction: column; gap: 1.25rem; }
+
+        .step-card {
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            border-radius: 1rem;
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+
+        .step-card.active  { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,71,255,.1); }
+        .step-card.blocked { border-color: var(--danger);  box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+        .step-card.success-card { border-color: var(--success); box-shadow: 0 0 0 3px rgba(34,197,94,.1); }
+
+        .step-header {
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .step-num {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .step-card.blocked .step-num  { background: var(--danger); }
+        .step-card.success-card .step-num { background: var(--success); }
+
+        .step-header h3 { font-size: 0.95rem; font-weight: 600; }
+        .step-header p  { font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; }
+
+        .step-body { padding: 1.25rem; }
+
+        /* Packet display */
+        .packet-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 600px) { .packet-grid { grid-template-columns: 1fr; } }
+
+        .packet-field {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 0.6rem;
+            padding: 0.75rem;
+        }
+
+        .packet-field label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .packet-field .val {
+            font-size: 0.82rem;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .packet-field .val.amount { font-size: 1rem; color: var(--danger); font-weight: 700; }
+        .packet-field .val.nonce  { font-size: 0.75rem; color: #7c3aed; }
+
+        /* Buttons */
+        .btn {
+            padding: 0.7rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background: #5a3de0; transform: translateY(-1px); }
+        .btn-danger  { background: var(--danger);  color: white; }
+        .btn-danger:hover:not(:disabled)  { background: #dc2626;  transform: translateY(-1px); }
+        .btn-outline { background: white; color: var(--primary); border: 1.5px solid var(--primary); }
+
+        /* Result box */
+        .result-box {
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            margin-top: 1rem;
+        }
+
+        .result-box.blocked { background: #fee2e2; border: 1.5px solid #fca5a5; color: #7f1d1d; }
+        .result-box.ok      { background: #d1fae5; border: 1.5px solid #6ee7b7; color: #065f46; }
+        .result-box.info    { background: #dbeafe; border: 1.5px solid #93c5fd; color: #1e3a8a; }
+
+        .result-box .icon { font-size: 1.5rem; flex-shrink: 0; }
+
+        /* Flow diagram */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 0.75rem 0;
+            font-size: 0.8rem;
+        }
+
+        .flow-step {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            font-weight: 500;
+        }
+
+        .flow-arrow { color: var(--muted); font-size: 1rem; }
+
+        /* Spinner */
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-placeholder {
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+
+        .tag {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            letter-spacing: 0.03em;
+        }
+
+        .tag-ok      { background: #d1fae5; color: #065f46; }
+        .tag-danger  { background: #fee2e2; color: #7f1d1d; }
+        .tag-info    { background: #dbeafe; color: #1e40af; }
+
+        /* Compare section */
+        .compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 600px) { .compare { grid-template-columns: 1fr; } }
+
+        .compare-col {
+            border-radius: 0.75rem;
+            padding: 1rem;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .compare-col h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .compare-col.col-bad  { background: #fee2e2; border: 1px solid #fca5a5; color: #7f1d1d; }
+        .compare-col.col-good { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; }
+
+        .nonce-highlight {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            font-family: monospace;
+            color: #78350f;
+            word-break: break-all;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+            <h1>🔬 Mô Phỏng Tấn Công Mạng</h1>
+            <span class="badge">Demo</span>
+        </div>
+        <p>AT-Wallet Security — Replay Attack Demonstration</p>
+    </div>
+    <a href="/">← Về trang chính</a>
+</header>
+
+<div class="container">
+
+    <!-- Intro -->
+    <div class="intro-card">
+        <strong>📌 Kịch bản:</strong> Kẻ tấn công đã chặn được một gói tin giao dịch hợp lệ (Man-in-the-Middle)
+        và cố gắng gửi lại gói tin đó để rút tiền lần thứ hai.
+        Trang này mô phỏng toàn bộ quá trình từ góc độ của kẻ tấn công để kiểm chứng khả năng chống Replay Attack của hệ thống.
+    </div>
+
+    <div class="steps">
+
+        <!-- STEP 1: Capture -->
+        <div class="step-card active" id="card-step1">
+            <div class="step-header">
+                <div class="step-num">1</div>
+                <div>
+                    <h3>🕵️ Chặn Gói Tin (Intercept)</h3>
+                    <p>Kẻ tấn công đứng giữa và sao chép gói tin giao dịch hợp lệ</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div id="packet-area">
+                    <div class="loading-placeholder">
+                        Đang tải thông tin gói tin giao dịch cuối...
+                    </div>
+                </div>
+                <div style="margin-top:1rem">
+                    <button class="btn btn-primary" id="btn-capture" onclick="capturePacket()">
+                        🔍 Chặn & Phân Tích Gói Tin
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Understand Nonce -->
+        <div class="step-card" id="card-step2" style="opacity:0.45">
+            <div class="step-header">
+                <div class="step-num">2</div>
+                <div>
+                    <h3>🔍 Phân Tích Cấu Trúc Bảo Mật</h3>
+                    <p>Nhận biết cơ chế chống Replay — giá trị Nonce</p>
+                </div>
+            </div>
+            <div class="step-body" id="step2-body">
+                <div class="loading-placeholder">Hoàn thành Bước 1 trước...</div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Attack -->
+        <div class="step-card" id="card-step3" style="opacity:0.45">
+            <div class="step-header">
+                <div class="step-num">3</div>
+                <div>
+                    <h3>⚡ Thực Hiện Replay Attack</h3>
+                    <p>Gửi lại đúng gói tin đã chặn được để khai thác</p>
+                </div>
+            </div>
+            <div class="step-body" id="step3-body">
+                <div class="loading-placeholder">Hoàn thành Bước 2 trước...</div>
+            </div>
+        </div>
+
+        <!-- STEP 4: Result -->
+        <div class="step-card" id="card-step4" style="opacity:0.45">
+            <div class="step-header">
+                <div class="step-num">4</div>
+                <div>
+                    <h3>🛡️ Kết Quả & Phân Tích</h3>
+                    <p>Hệ thống phản ứng như thế nào với tấn công?</p>
+                </div>
+            </div>
+            <div class="step-body" id="step4-body">
+                <div class="loading-placeholder">Hoàn thành Bước 3 trước...</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const API = '';
+    let capturedPacket = null;
+
+    async function capturePacket() {
+        const btn = document.getElementById('btn-capture');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Đang chặn...';
+
+        try {
+            const res = await fetch(`${API}/api/test/captured-packet`);
+            if (!res.ok) {
+                const err = await res.json();
+                document.getElementById('packet-area').innerHTML = `
+                    <div class="result-box info">
+                        <span class="icon">ℹ️</span>
+                        <div><strong>Chưa có giao dịch!</strong><br>${err.detail}<br>
+                        <a href="/" style="color:var(--info);font-weight:600;">→ Thực hiện một giao dịch chuyển tiền trước</a></div>
+                    </div>`;
+                btn.disabled = false;
+                btn.innerHTML = '🔍 Chặn & Phân Tích Gói Tin';
+                return;
+            }
+
+            capturedPacket = await res.json();
+            renderCapturedPacket(capturedPacket);
+            renderStep2(capturedPacket);
+            renderStep3(capturedPacket);
+
+        } catch (e) {
+            document.getElementById('packet-area').innerHTML =
+                `<div class="result-box blocked"><span class="icon">❌</span><div>Không thể kết nối server.</div></div>`;
+            btn.disabled = false;
+            btn.innerHTML = '🔍 Chặn & Phân Tích Gói Tin';
+        }
+    }
+
+    function renderCapturedPacket(p) {
+        const ts = new Date(p.timestamp).toLocaleString('vi-VN');
+        document.getElementById('packet-area').innerHTML = `
+            <div class="result-box ok" style="margin-bottom:1rem">
+                <span class="icon">✅</span>
+                <div><strong>Gói tin đã bị chặn thành công!</strong><br>
+                Kẻ tấn công hiện đang giữ một bản sao hoàn chỉnh của giao dịch hợp lệ.</div>
+            </div>
+            <div class="packet-grid">
+                <div class="packet-field">
+                    <label>👤 Người Gửi</label>
+                    <div class="val">${p.sender}</div>
+                </div>
+                <div class="packet-field">
+                    <label>👤 Người Nhận</label>
+                    <div class="val">${p.receiver}</div>
+                </div>
+                <div class="packet-field">
+                    <label>💰 Số Tiền</label>
+                    <div class="val amount">฿ ${p.amount.toLocaleString('vi-VN')}</div>
+                </div>
+                <div class="packet-field">
+                    <label>📅 Thời Gian Gốc</label>
+                    <div class="val">${ts}</div>
+                </div>
+                <div class="packet-field" style="grid-column:span 2">
+                    <label>🔐 Encrypted Payload (AES-GCM)</label>
+                    <div class="val">${p.encrypted_payload}</div>
+                </div>
+                <div class="packet-field" style="grid-column:span 2">
+                    <label>✍️ Chữ Ký Số (ECDSA)</label>
+                    <div class="val">${p.signature}</div>
+                </div>
+                <div class="packet-field" style="grid-column:span 2">
+                    <label>🎲 Nonce (Số ngẫu nhiên dùng 1 lần)</label>
+                    <div class="val nonce">${p.nonce}</div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-capture').innerHTML = '✅ Đã chặn được gói tin';
+    }
+
+    function renderStep2(p) {
+        const card = document.getElementById('card-step2');
+        card.style.opacity = '1';
+        document.getElementById('step2-body').innerHTML = `
+            <p style="font-size:0.875rem;color:var(--muted);margin-bottom:1rem;">
+                Gói tin có đầy đủ chữ ký số và mã hóa — rất khó giả mạo. 
+                Nhưng kẻ tấn công không cần giải mã. Họ chỉ cần <strong>gửi lại nguyên xi</strong>.
+                Đây là lý do vì sao <strong>Nonce</strong> tồn tại.
+            </p>
+            <div class="compare">
+                <div class="compare-col col-bad">
+                    <h4>❌ Hệ thống KHÔNG có Nonce</h4>
+                    <ul style="padding-left:1.25rem;line-height:2">
+                        <li>Nhận gói tin</li>
+                        <li>Chữ ký hợp lệ ✓</li>
+                        <li>Xử lý → Trừ tiền lần 2!</li>
+                    </ul>
+                </div>
+                <div class="compare-col col-good">
+                    <h4>✅ Hệ thống CÓ Nonce Store</h4>
+                    <ul style="padding-left:1.25rem;line-height:2">
+                        <li>Nhận gói tin</li>
+                        <li>Kiểm tra Nonce đã tồn tại?</li>
+                        <li>→ Có: Từ CHỐI ngay!</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="nonce-highlight">
+                <strong>Nonce bị chặn:</strong><br>${p.nonce}
+                <span class="tag ${p.nonce_already_seen ? 'tag-danger' : 'tag-info'}" style="margin-left:0.5rem">
+                    ${p.nonce_already_seen ? 'Đã ghi nhận ⚠️' : 'Chưa ghi nhận'}
+                </span>
+            </div>
+        `;
+    }
+
+    function renderStep3(p) {
+        const card = document.getElementById('card-step3');
+        card.style.opacity = '1';
+        const s3 = document.getElementById('step3-body');
+        s3.innerHTML = `
+            <p style="font-size:0.875rem;color:var(--muted);margin-bottom:1rem;">
+                Kẻ tấn công gửi lại đúng gói tin đã chặn được — cùng nonce, cùng chữ ký, cùng payload.
+            </p>
+            <div class="flow" style="margin-bottom:1rem">
+                <span class="flow-step">🦹 Attacker</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">📦 Gói tin gốc (copy)</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">🖥️ AT-Wallet Server</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">🔍 Kiểm tra Nonce...</span>
+            </div>
+            <button class="btn btn-danger" id="btn-replay" onclick="executeReplay()">
+                ⚡ Thực Hiện Replay Attack
+            </button>
+            <div id="replay-result"></div>
+        `;
+    }
+
+    async function executeReplay() {
+        const btn = document.getElementById('btn-replay');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Đang gửi gói tin...';
+
+        try {
+            const res = await fetch(`${API}/api/test/attack?type=REPLAY`, { method: 'POST' });
+            const data = await res.json();
+
+            const card4 = document.getElementById('card-step4');
+            card4.style.opacity = '1';
+
+            if (!res.ok) {
+                // Attack was blocked
+                document.getElementById('replay-result').innerHTML = `
+                    <div class="result-box blocked">
+                        <span class="icon">🚫</span>
+                        <div><strong>Server phản hồi: ${res.status} Blocked</strong><br>
+                        ${data.detail}</div>
+                    </div>`;
+
+                card4.className = 'step-card blocked';
+                document.getElementById('step4-body').innerHTML = renderResult(true, data);
+                btn.innerHTML = '🚫 Tấn công bị chặn';
+            } else {
+                // Nonce was recorded this round, need to replay again
+                document.getElementById('replay-result').innerHTML = `
+                    <div class="result-box info">
+                        <span class="icon">ℹ️</span>
+                        <div><strong>Nonce vừa được ghi nhận.</strong><br>
+                        ${data.msg}<br>
+                        <button class="btn btn-danger" style="margin-top:0.75rem" onclick="executeReplay()">
+                            ⚡ Bấm lại để thấy hệ thống chặn!
+                        </button>
+                        </div>
+                    </div>`;
+                card4.style.opacity = '1';
+                document.getElementById('step4-body').innerHTML = renderResult(false, data);
+                btn.innerHTML = '⚡ Thực Hiện Replay Attack';
+                btn.disabled = false;
+            }
+
+        } catch (e) {
+            document.getElementById('replay-result').innerHTML =
+                `<div class="result-box blocked"><span class="icon">❌</span><div>Lỗi kết nối server.</div></div>`;
+            btn.disabled = false;
+            btn.innerHTML = '⚡ Thực Hiện Replay Attack';
+        }
+    }
+
+    function renderResult(isBlocked, data) {
+        if (isBlocked) {
+            return `
+                <div style="font-size:0.875rem">
+                    <div class="result-box blocked" style="margin-bottom:1rem">
+                        <span class="icon">🛡️</span>
+                        <div>
+                            <strong>Replay Attack đã bị chặn hoàn toàn!</strong><br>
+                            Hệ thống phát hiện Nonce đã được sử dụng trước đó và từ chối xử lý giao dịch.
+                            Số dư của nạn nhân <strong>KHÔNG thay đổi</strong>.
+                        </div>
+                    </div>
+                    <div class="compare">
+                        <div class="compare-col col-bad">
+                            <h4>🦹 Kẻ tấn công kỳ vọng</h4>
+                            <ul style="padding-left:1.25rem;line-height:2">
+                                <li>Trừ thêm tiền người dùng</li>
+                                <li>Nhận tiền lần 2</li>
+                            </ul>
+                        </div>
+                        <div class="compare-col col-good">
+                            <h4>✅ Thực tế xảy ra</h4>
+                            <ul style="padding-left:1.25rem;line-height:2">
+                                <li>Nonce đã bị khóa</li>
+                                <li>Giao dịch từ chối</li>
+                                <li>Không có gì thay đổi</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="result-box ok" style="margin-top:1rem">
+                        <span class="icon">✅</span>
+                        <div>
+                            <strong>Cơ chế bảo vệ hoạt động đúng!</strong><br>
+                            Nonce Store của AT-Wallet đã ghi nhớ mã ngẫu nhiên của giao dịch gốc
+                            và từ chối mọi yêu cầu sử dụng lại nonce đó. Tấn công Replay Attack <strong>hoàn toàn thất bại</strong>.
+                        </div>
+                    </div>
+                </div>`;
+        } else {
+            return `
+                <div class="result-box info">
+                    <span class="icon">📋</span>
+                    <div>
+                        Nonce vừa được ghi nhận vào hệ thống. Bấm "Replay Attack" lần nữa để thấy hệ thống <strong>chặn tấn công</strong>.
+                    </div>
+                </div>`;
+        }
+    }
+</script>
+</body>
+</html>

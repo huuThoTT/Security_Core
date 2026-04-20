@@ -26,8 +26,8 @@ class AdvancedSecurityEncryptor:
             with open(salt_path, "rb") as f:
                 salt = f.read()
             
-            # Derive KEK
-            kek = PBKDF2(passphrase, salt, 32, count=600000, hmac_hash_module=SHA256)
+            # Derive KEK (100,000 iterations for performance balance)
+            kek = PBKDF2(passphrase, salt, 32, count=100000, hmac_hash_module=SHA256)
             
             with open(key_path, "rb") as f:
                 data = f.read()

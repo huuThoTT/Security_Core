@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AT-Wallet | Secure Digital Pay</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 
@@ -32,7 +32,14 @@
                     <label>Master Password</label>
                     <input type="password" id="auth-password" placeholder="Master Password">
                 </div>
+                <div class="form-group" id="pin-setup-group" style="display: none;">
+                    <label>Payment PIN (6 digits)</label>
+                    <input type="password" id="auth-pin" placeholder="123456" maxlength="6" inputmode="numeric">
+                </div>
                 <button class="btn-primary" id="auth-btn" onclick="handleAuth()">Unlock Now</button>
+                <p id="forgot-pwd-link" style="font-size: 0.75rem; color: var(--primary); text-align: center; margin-top: 1rem; cursor: pointer; text-decoration: underline;" onclick="switchView('recovery')">
+                    Forgot Password?
+                </p>
                 <p id="auth-desc"
                     style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
                     Enter your master password to decrypt your wallet keys.
@@ -44,12 +51,51 @@
         <section id="view-setup" class="app-section">
             <div style="padding: 2rem 1.5rem 2rem; text-align: center;">
                 <h2 style="margin-bottom: 1rem;">Thiết lập Danh tính</h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">Tài khoản của bạn đã được mã hóa bằng Argon2. Để bảo mật tối đa, vui lòng quét mã QR sau bằng Google Authenticator làm lớp Mật khẩu cấp 2 (2FA).</p>
-                <div class="card-white">
+                
+                <!-- NEW: Mnemonic Card -->
+                <div id="mnemonic-container" style="display: none; margin-bottom: 2rem;">
+                    <p style="color: var(--danger); font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;">⚠️ CẢNH BÁO: LƯU LẠI 12 TỪ NÀY!</p>
+                    <div class="card-white" style="background: #fffbeb; border: 1px dashed #d97706; padding: 1.5rem;">
+                        <div id="mnemonic-display" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; font-family: monospace; font-size: 0.8rem; color: #92400e;">
+                            <!-- Words injected here -->
+                        </div>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Dùng để khôi phục tài khoản nếu quên mật khẩu.</p>
+                </div>
+
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">Vui lòng quét mã QR sau bằng Google Authenticator để kích hoạt 2FA.</p>
+                <div class="card-white" style="margin-bottom: 2rem;">
                     <img id="totp-qr" src="" style="width: 150px; height: 150px; margin: 0 auto; display: block;" alt="2FA QR">
                     <div style="margin-top: 1rem; font-weight: bold; letter-spacing: 2px" id="totp-secret-text">XXXXX</div>
                 </div>
-                <button class="btn-primary" style="margin-top: 2rem;" onclick="toggleAuthMode('login'); switchView('auth')">Tôi đã lưu khóa (Trở về Đăng nhập)</button>
+                <button class="btn-primary" onclick="toggleAuthMode('login'); switchView('auth')">Tôi đã lưu thông tin bảo mật</button>
+            </div>
+        </section>
+
+        <!-- VIEW: RECOVERY (Forgot Password) -->
+        <section id="view-recovery" class="app-section">
+            <div class="section-header">
+                <button class="btn-back" onclick="switchView('auth')">←</button>
+                <h2 style="margin: 0; font-size: 1.25rem;">Khôi phục tài khoản</h2>
+            </div>
+            <div class="card-white" style="margin: 1.5rem;">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">Nhập Username của bạn để nhận mã OTP tại hệ thống (Console), sau đó nhập mã để tạo mật khẩu mới.</p>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="recovery-username" placeholder="Tên đăng nhập">
+                </div>
+                <div style="margin-bottom: 1.5rem;">
+                    <button class="btn-outline" style="width: 100%; padding: 0.6rem; font-size: 0.85rem;" onclick="requestOTP()">Gửi OTP giả lập</button>
+                </div>
+                <div class="form-group">
+                    <label>Mã OTP (6 số)</label>
+                    <input type="text" id="recovery-otp" placeholder="123456" maxlength="6">
+                </div>
+                <div class="form-group">
+                    <label>New Master Password</label>
+                    <input type="password" id="recovery-new-password" placeholder="Mật khẩu mới">
+                </div>
+                <button class="btn-primary" onclick="confirmPasswordReset()">Khôi phục ngay</button>
             </div>
         </section>
 
@@ -60,11 +106,37 @@
                 <div>
                     <div style="font-size: 0.75rem; color: var(--text-muted);">Welcome back,</div>
                     <div style="font-weight: 700;" id="display-username">User</div>
-                    <div style="font-size: 0.7rem; color: var(--danger); cursor: pointer; text-decoration: underline;" onclick="logoutUser()">Logout</div>
+                    <div style="font-size: 0.7rem; color: var(--danger); cursor: pointer; text-decoration: underline;"
+                        onclick="logoutUser()">Logout</div>
                 </div>
             </div>
             <div id="security-shield" title="Security Active">🛡️</div>
         </header>
+
+        <!-- VIEW: SETTINGS -->
+        <section id="view-settings" class="app-section">
+            <div class="section-header">
+                <button class="btn-back" onclick="switchView('home')">←</button>
+                <h2 style="margin: 0; font-size: 1.25rem;">Cài đặt Tài khoản</h2>
+            </div>
+            <div class="card-white" style="margin: 1.5rem;">
+                <h3 style="margin-bottom: 1rem; font-size: 1rem;">Đổi mật khẩu</h3>
+                <div class="form-group">
+                    <label>Mật khẩu cũ</label>
+                    <input type="password" id="settings-old-pass" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu mới</label>
+                    <input type="password" id="settings-new-pass" placeholder="••••••••">
+                </div>
+                <button class="btn-primary" onclick="changePassword()">Cập nhật Mật khẩu</button>
+            </div>
+            
+            <div class="card-white" style="margin: 0 1.5rem; background: #fff5f5; border: 1px solid #fed7d7;">
+                <h3 style="color: var(--danger); font-size: 0.9rem; margin-bottom: 0.5rem;">Khu vực nguy hiểm</h3>
+                <p style="font-size: 0.75rem; color: #c53030;">Xóa tài khoản hoặc reset ví sẽ mất toàn bộ dữ liệu vĩnh viễn.</p>
+            </div>
+        </section>
 
         <!-- VIEW: HOME (Wallet Card) -->
         <section id="view-home" class="app-section">
@@ -86,13 +158,17 @@
                     <div class="action-icon">📤</div>
                     <div class="action-label">Send</div>
                 </div>
-                <div class="action-btn">
+                <div class="action-btn" onclick="switchView('request')">
                     <div class="action-icon">📥</div>
                     <div class="action-label">Request</div>
                 </div>
                 <div class="action-btn">
-                    <div class="action-icon">🔝</div>
-                    <div class="action-label">Top up</div>
+                    <div class="action-icon">⌛</div>
+                    <div class="action-label">Logs</div>
+                </div>
+                <div class="action-btn" onclick="switchView('settings')">
+                    <div class="action-icon">⚙️</div>
+                    <div class="action-label">Settings</div>
                 </div>
             </div>
 
@@ -104,57 +180,79 @@
                 </div>
                 <div id="recent-tx-list">
                     <!-- Recent items injected here -->
-                    <div class="card-white" style="display: flex; align-items: center; gap: 1rem; padding: 1rem;">
-                        <div
-                            style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                            👤</div>
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600; font-size: 0.9rem;">No transactions yet</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted);">Start by sending some ฿</div>
-                        </div>
-                    </div>
+                </div>
+            </div>
+
+            <div style="padding: 0 1.5rem; margin-top: 1.5rem;" id="incoming-requests-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin-bottom: 0;">Incoming Requests</h3>
+                </div>
+                <div id="pending-requests-list">
+                    <!-- Pending requests injected here -->
                 </div>
             </div>
         </section>
 
         <!-- VIEW: TRANSFER -->
         <section id="view-transfer" class="app-section">
-            <div style="padding: 0 1rem;">
-                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
-                    <button
-                        style="background: none; color: var(--text-main); font-size: 1.5rem; width: auto; padding: 0;"
-                        onclick="switchView('home')">←</button>
-                    <h2 style="font-size: 1.25rem;">Send Money</h2>
-                </div>
+            <div class="section-header">
+                <button class="btn-back" onclick="switchView('home')">←</button>
+                <h2 style="margin: 0; font-size: 1.25rem;">Send Money</h2>
+            </div>
 
-                <div class="card-white">
-                    <div class="form-group">
-                        <label>Recipient Username</label>
-                        <input type="text" id="tx-receiver" placeholder="Enter Bob, Alice...">
-                    </div>
-                    <div class="form-group">
-                        <label>Amount (฿)</label>
-                        <input type="number" id="tx-amount" placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>Transaction Message</label>
-                        <input type="text" id="tx-msg" placeholder="What's this for?">
-                    </div>
-                    <div class="form-group">
-                        <label>Mật khẩu đăng nhập (Master Password)</label>
-                        <input type="password" id="tx-pass" placeholder="Verify identity">
-                    </div>
-                    <button id="btn-transfer" class="btn-primary" onclick="sendTransfer()">Sign & Send Securely</button>
+            <div class="card-white" style="flex: 1;">
+                <div class="form-group">
+                    <label>Recipient Username</label>
+                    <input type="text" id="tx-receiver" placeholder="Enter Bob, Alice...">
                 </div>
+                <div class="form-group">
+                    <label>Amount (฿)</label>
+                    <input type="number" id="tx-amount" placeholder="0.00">
+                </div>
+                <button id="btn-transfer" class="btn-primary" style="margin-top: 1rem;"
+                    onclick="openTransferConfirmation()">Next Step: Secure Authorization</button>
+        </section>
+
+        <!-- VIEW: REQUEST -->
+        <section id="view-request" class="app-section">
+            <div class="section-header">
+                <button class="btn-back" onclick="switchView('home')">←</button>
+                <h2 style="margin: 0; font-size: 1.25rem;">Request Money</h2>
+            </div>
+
+            <div class="card-white" style="flex: 1;">
+                <div class="form-group">
+                    <label>Yêu cầu từ (Username)</label>
+                    <input type="text" id="req-target" placeholder="Nhập tên người bạn muốn yêu cầu...">
+                </div>
+                <div class="form-group">
+                    <label>Số tiền (฿)</label>
+                    <input type="number" id="req-amount" placeholder="0.00" min="0.01" step="0.01">
+                </div>
+                <button id="btn-request" class="btn-primary" style="margin-top: 1rem;"
+                    onclick="openRequestConfirmation()">Tiếp theo: Xác nhận yêu cầu</button>
             </div>
         </section>
 
         <!-- VIEW: HISTORY / LOGS -->
         <section id="view-history" class="app-section">
-            <div style="padding: 0 1rem;">
-                <h2 style="margin-bottom: 1.5rem;">Activity History</h2>
+            <div class="section-header">
+                <button class="btn-back" onclick="switchView('home')">←</button>
+                <h2 style="margin: 0; font-size: 1.25rem;">Activity History</h2>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; padding-bottom: 2rem;">
+                <h3
+                    style="font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">
+                    Transactions</h3>
+                <div id="full-tx-list" style="margin-bottom: 2rem;">
+                    <!-- Full transactions injected here -->
+                </div>
+
+                <h3
+                    style="font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">
+                    Security Threats Detected</h3>
                 <div class="card-white log-card" id="log-container">
-                    <!-- Logs will be injected here -->
                     <div class="log-entry">Searching for security events...</div>
                 </div>
             </div>
@@ -209,7 +307,8 @@
             <div style="padding: 0 1rem;">
                 <h2 style="margin-bottom: 1.5rem;">System Administration</h2>
                 <div class="card-white" style="overflow-x: auto; padding: 1rem 0;">
-                    <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 0.85rem;" id="admin-table">
+                    <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 0.85rem;"
+                        id="admin-table">
                         <thead>
                             <tr style="border-bottom: 1px solid #e2e8f0; color: var(--text-muted);">
                                 <th style="padding: 0.5rem 1rem;">User</th>
@@ -219,7 +318,10 @@
                             </tr>
                         </thead>
                         <tbody id="admin-users-table">
-                            <tr><td colspan="4" style="text-align: center; padding: 1rem;">Loading security directory...</td></tr>
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 1rem;">Loading security directory...
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -247,7 +349,53 @@
         </nav>
     </div>
 
-    <script src="script.js"></script>
+    <!-- SECURE MODAL OVERLAY -->
+    <div id="secure-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div class="card-white"
+            style="width: 90%; max-width: 350px; text-align: center; animation: fadeIn 0.3s ease-out;">
+            <div style="font-size: 2rem; margin-bottom: 1rem;">🔐</div>
+            <h3 id="modal-title" style="margin-bottom: 0.25rem; font-size: 1.1rem;">Authorize Payment</h3>
+
+            <!-- Summary Info -->
+            <div id="modal-summary"
+                style="background: var(--primary-light); color: var(--primary); padding: 1rem; border-radius: 1rem; margin: 1rem 0; font-size: 0.9rem;">
+                Sending <strong>฿<span id="summary-amount">0</span></strong> to <strong
+                    id="summary-recipient">User</strong>
+            </div>
+
+            <div class="form-group" style="text-align: left;">
+                <label>Lời nhắn (Message)</label>
+                <input type="text" id="modal-msg" placeholder="What is this for?"
+                    style="background: #f8fafc; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+
+                <label>Payment PIN (6 digits)</label>
+                <input type="password" id="modal-pass" placeholder="••••••" maxlength="6" inputmode="numeric"
+                    style="background: #f8fafc; border: 1px solid #e2e8f0; letter-spacing: 0.5rem; text-align: center; font-size: 1.25rem;">
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                <button class="btn-outline" style="flex: 1;" onclick="closeSecureModal(false)">Cancel</button>
+                <button class="btn-primary" style="flex: 1;" onclick="closeSecureModal(true)">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" style="
+        position: fixed;
+        top: 1.25rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 90%;
+        max-width: 380px;
+        pointer-events: none;
+    "></div>
+
+    <script src="script.js?v=4.0"></script>
 </body>
 
 </html>

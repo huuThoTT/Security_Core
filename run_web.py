@@ -1,12 +1,10 @@
-import webview
 import subprocess
 import time
-import os
-import signal
 import sys
+import webbrowser
 
 def start_server():
-    print("Starting AT-Wallet Security Core...")
+    print("Starting AT-Wallet Security Core (Web Mode)...")
     process = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--port", "8000"])
     
     # Wait until server is ready
@@ -24,15 +22,18 @@ def start_server():
     return process
 
 if __name__ == '__main__':
-    # 1. Start the FastAPI Backend securely in the background
+    # 1. Start the FastAPI Backend securely
     server_proc = start_server()
     
-    # 2. Open the Desktop UI Window (simulating a mobile wallet form factor)
-    print("Launching Native Interface...")
-    webview.create_window('AT-Wallet Desktop Client', 'http://127.0.0.1:8000', width=450, height=850, resizable=False)
-    webview.start()
+    # 2. Open the URL in the Default Browser (Google Chrome, Safari, etc.)
+    print("Opening AT-Wallet in your Web Browser...")
+    webbrowser.open("http://127.0.0.1:8000")
     
-    # 3. Clean up the backend when the UI is closed
-    print("Shutting down Security Core...")
-    server_proc.terminate()
-    server_proc.wait()
+    # 3. Keep the server running
+    try:
+        print("\n[BẤM CTRL+C ĐỂ TẮT MÁY CHỦ]")
+        server_proc.wait()
+    except KeyboardInterrupt:
+        print("\nShutting down Security Core...")
+        server_proc.terminate()
+        server_proc.wait()

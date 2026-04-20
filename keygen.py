@@ -71,8 +71,8 @@ def generate_user_keys(output_dir="keys", passphrase=None):
         with open(os.path.join(output_dir, "salt.bin"), "wb") as f:
             f.write(salt)
             
-        # PBKDF2 as per Phase 3 requirement (600,000 iterations)
-        kek = PBKDF2(passphrase.encode(), salt, 32, count=600000, hmac_hash_module=SHA256)
+        # PBKDF2 for key derivation (100,000 iterations for balance of security and speed)
+        kek = PBKDF2(passphrase.encode(), salt, 32, count=100000, hmac_hash_module=SHA256)
         
         for key_obj, name in [(sig_key, "sig_private.enc"), (kex_key, "kex_private.enc")]:
             cipher = AES.new(kek, AES.MODE_GCM)

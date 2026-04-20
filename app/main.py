@@ -49,8 +49,8 @@ def seed_initial_data():
     try:
         # 1. Seed ADMIN
         admin_user = db.query(models.User).filter(models.User.username == "admin").first()
-        admin_hash = ph.hash("admin123")
         if not admin_user:
+            admin_hash = ph.hash("admin123")
             totp_secret = pyotp.random_base32()
             admin_user = models.User(username="admin", password_hash=admin_hash, salt="ARGON2", totp_secret=totp_secret, totp_enabled=False, role="Admin")
             db.add(admin_user)
@@ -66,14 +66,14 @@ def seed_initial_data():
             db.commit()
             print("[INFO] Admin provisioned (pw: admin123)")
         else:
-            admin_user.password_hash = admin_hash
             admin_user.role = "Admin"
             db.commit()
 
-        # 2. Seed TEST USER (for wallet UI testing)
+        # 2. Seed MOCK USERS for testing
         test_user = db.query(models.User).filter(models.User.username == "user123").first()
-        test_hash = ph.hash("user123")
+        
         if not test_user:
+            test_hash = ph.hash("user123")
             totp_secret = pyotp.random_base32()
             test_user = models.User(username="user123", password_hash=test_hash, salt="ARGON2", totp_secret=totp_secret, totp_enabled=False, role="User")
             db.add(test_user)
@@ -89,7 +89,6 @@ def seed_initial_data():
             db.commit()
             print("[INFO] Test User 'user123' provisioned (pw: user123)")
         else:
-            test_user.password_hash = test_hash
             # Force reset balance for demo purpose
             wallet = db.query(models.Wallet).filter(models.Wallet.user_id == test_user.id).first()
             if wallet:
@@ -207,7 +206,7 @@ def register(request: Request, user: schemas.UserCreate, db: Session = Depends(g
 
 @app.post("/api/login")
 @limiter.limit("10/minute")
-def login(request: Request, user: schemas.UserCreate, db: Session = Depends(get_db)):
+def login(request: Request, user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if not db_user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -276,8 +275,16 @@ def transfer(request: Request, tx: schemas.TransactionCreate, current_user: mode
     sender = current_user
     receiver = db.query(models.User).filter(models.User.username == tx.receiver_username).first()
     if not receiver:
-        raise HTTPException(status_code=404, detail="Receiver not found")
-    
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại.")
+
+    # Block sending to yourself
+    if receiver.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Không thể gửi tiền cho chính mình.")
+
+    # Block sending to admin (admin is system-only, not a real user wallet)
+    if receiver.username.lower() == "admin":
+        raise HTTPException(status_code=403, detail="Không thể gửi tiền đến tài khoản quản trị viên (admin).")
+
     # Encrypt & sign using security core
     try:
         data = f"Amount: {tx.amount}, Msg: {tx.message}".encode()
@@ -293,7 +300,7 @@ def transfer(request: Request, tx: schemas.TransactionCreate, current_user: mode
             data,
             os.path.join(sender_path, "sig_private.enc"),
             os.path.join(receiver_path, "kex_public.pem"),
-            passphrase=tx.passphrase,
+            passphrase=tx.payment_pin,
             salt_path=os.path.join(sender_path, "salt.bin"),
             aad=aad_bytes
         )
@@ -374,6 +381,203 @@ def get_transaction_history(current_user: models.User = Depends(get_current_user
         })
     return results
 
+# --- PAYMENT REQUEST ENDPOINTS ---
+
+@app.post("/api/transactions/request")
+@limiter.limit("20/minute")
+def create_payment_request(request: Request, data: schemas.PaymentRequestCreate,
+                            current_user: models.User = Depends(get_current_user_from_token),
+                            db: Session = Depends(get_db)):
+    """User A requests money from User B."""
+    target = db.query(models.User).filter(models.User.username == data.target_username).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target user not found.")
+    if target.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot request money from yourself.")
+
+    tx = models.Transaction(
+        sender_id=target.id,
+        receiver_id=current_user.id,
+        amount=data.amount,
+        aad=data.message or "",
+        tx_status="Requested",
+        encrypted_payload="",
+        auth_tag="",
+        nonce="",
+        signature=""
+    )
+    db.add(tx)
+    db.add(models.SecurityLog(event_type="PAYMENT_REQUEST",
+                               description=f"{current_user.username} requested ฿{data.amount} from {data.target_username}"))
+    db.commit()
+    return {"msg": f"Payment request of ฿{data.amount} sent to {data.target_username}."}
+
+
+@app.get("/api/transactions/requests/incoming")
+def get_incoming_requests(current_user: models.User = Depends(get_current_user_from_token),
+                           db: Session = Depends(get_db)):
+    """Get all pending payment requests where current user is the one who should pay."""
+    txs = db.query(models.Transaction).filter(
+        models.Transaction.sender_id == current_user.id,
+        models.Transaction.tx_status == "Requested"
+    ).order_by(models.Transaction.timestamp.desc()).all()
+
+    results = []
+    for tx in txs:
+        requester = db.query(models.User).filter(models.User.id == tx.receiver_id).first()
+        results.append({
+            "id": tx.id,
+            "requester_username": requester.username if requester else "Unknown",
+            "amount": tx.amount,
+            "message": tx.aad or "",
+            "timestamp": tx.timestamp.isoformat()
+        })
+    return results
+
+
+@app.post("/api/transactions/requests/fulfill/{tx_id}")
+@limiter.limit("20/minute")
+def fulfill_payment_request(request: Request, tx_id: str, data: schemas.PaymentRequestFulfill,
+                              current_user: models.User = Depends(get_current_user_from_token),
+                              db: Session = Depends(get_db)):
+    """Current user pays a pending payment request addressed to them."""
+    tx = db.query(models.Transaction).filter(
+        models.Transaction.id == tx_id,
+        models.Transaction.sender_id == current_user.id,
+        models.Transaction.tx_status == "Requested"
+    ).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Payment request not found.")
+
+    # Verify Payment PIN
+    if not current_user.payment_pin_hash:
+        raise HTTPException(status_code=400, detail="Bạn chưa cài Payment PIN. Vui lòng thiết lập trong Settings.")
+    try:
+        ph.verify(current_user.payment_pin_hash, data.payment_pin)
+    except Exception:
+        raise HTTPException(status_code=403, detail="Mã PIN không đúng. Thanh toán bị từ chối.")
+
+    # Check wallet balance
+    wallet = db.query(models.Wallet).filter(models.Wallet.user_id == current_user.id).first()
+    if not wallet or float(wallet.encrypted_balance) < tx.amount:
+        raise HTTPException(status_code=400, detail=f"Số dư không đủ. Bạn cần ít nhất ฿{tx.amount} để thực hiện thanh toán này.")
+
+    receiver_wallet = db.query(models.Wallet).filter(models.Wallet.user_id == tx.receiver_id).first()
+    if not receiver_wallet:
+        raise HTTPException(status_code=404, detail="Receiver wallet not found.")
+
+    # Debit sender, credit receiver
+    wallet.encrypted_balance = str(float(wallet.encrypted_balance) - tx.amount)
+    receiver_wallet.encrypted_balance = str(float(receiver_wallet.encrypted_balance) + tx.amount)
+
+    # Mark request as completed
+    tx.tx_status = "Completed"
+    tx.encrypted_payload = "FULFILLED"
+    tx.signature = "FULFILLED"
+
+    requester = db.query(models.User).filter(models.User.id == tx.receiver_id).first()
+    db.add(models.SecurityLog(event_type="PAYMENT_FULFILLED",
+                               description=f"{current_user.username} fulfilled ฿{tx.amount} request from {requester.username if requester else 'Unknown'}"))
+    db.commit()
+    return {"msg": f"Payment of ฿{tx.amount} fulfilled successfully."}
+
+
+# --- PASSWORD RECOVERY (OTP) ENDPOINTS ---
+
+@app.post("/api/auth/forgot-password")
+@limiter.limit("5/minute")
+def forgot_password(request: Request, data: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.username == data.username).first()
+    if not db_user:
+        # Prevent user enumeration by returning a generic success message
+        return {"msg": "If the username exists, a recovery OTP has been sent."}
+    
+    import random
+    from datetime import datetime, timedelta
+    
+    # Generate 6-digit OTP
+    otp_code = f"{random.randint(0, 999999):06d}"
+    
+    # Store hashed OTP in database with 15 mins expiry
+    expires = datetime.utcnow() + timedelta(minutes=15)
+    
+    # Clean up old resets for this user
+    db.query(models.PasswordReset).filter(models.PasswordReset.user_id == db_user.id).delete()
+    
+    new_reset = models.PasswordReset(
+        user_id=db_user.id,
+        otp_hash=ph.hash(otp_code),
+        expires_at=expires
+    )
+    db.add(new_reset)
+    db.commit()
+    
+    # MOCK EMAIL
+    print("\n" + "="*50)
+    print(f"[MOCK EMAIL] Password Reset Request for {data.username}")
+    print(f"Your 6-digit OTP Code is: {otp_code}")
+    print("This code will expire in 15 minutes.")
+    print("="*50 + "\n")
+    
+    return {"msg": "If the username exists, a recovery OTP has been sent."}
+
+@app.post("/api/auth/reset-password")
+@limiter.limit("5/minute")
+def reset_password(request: Request, data: schemas.UserResetPassword, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.username == data.username).first()
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Invalid request parameters.")
+        
+    import datetime
+    active_reset = db.query(models.PasswordReset).filter(
+        models.PasswordReset.user_id == db_user.id,
+        models.PasswordReset.expires_at > datetime.datetime.utcnow()
+    ).first()
+    
+    if not active_reset:
+        raise HTTPException(status_code=400, detail="OTP Code expired or not found.")
+        
+    try:
+        ph.verify(active_reset.otp_hash, data.otp_code)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid OTP Code.")
+        
+    # Validation passed - Update password
+    db_user.password_hash = ph.hash(data.new_password)
+    db_user.failed_login_count = 0 
+    db_user.locked_until = None
+    
+    # Delete the reset token
+    db.delete(active_reset)
+    db.commit()
+    
+    return {"msg": "Password reset successful. You can now login with your new password."}
+# --- CHANGE PASSWORD ENDPOINT ---
+
+@app.post("/api/auth/change-password")
+@limiter.limit("10/minute")
+def change_password(request: Request, data: schemas.UserChangePassword,
+                    current_user: models.User = Depends(get_current_user_from_token),
+                    db: Session = Depends(get_db)):
+    """Allow logged-in user to change their own password."""
+    # Verify old password
+    try:
+        ph.verify(current_user.password_hash, data.old_password)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Mật khẩu cũ không đúng.")
+
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự.")
+
+    # Update password
+    current_user.password_hash = ph.hash(data.new_password)
+    db.add(models.SecurityLog(
+        event_type="PASSWORD_CHANGED",
+        description=f"User '{current_user.username}' changed their password."
+    ))
+    db.commit()
+    return {"msg": "Đổi mật khẩu thành công! Hãy đăng nhập lại."}
+
 # --- ADMIN MANAGEMENT ENDPOINTS ---
 
 @app.get("/api/admin/users")
@@ -445,6 +649,41 @@ def run_benchmark():
     
     return results
 
+@app.get("/api/test/captured-packet")
+def get_captured_packet(db: Session = Depends(get_db)):
+    """Return the last encrypted transaction packet for the attacker demo page."""
+    last_tx = db.query(models.Transaction).filter(
+        models.Transaction.tx_status.in_(["Completed", "Verified"]),
+        models.Transaction.encrypted_payload != "",
+        models.Transaction.encrypted_payload != "FULFILLED"
+    ).order_by(models.Transaction.timestamp.desc()).first()
+
+    if not last_tx:
+        raise HTTPException(status_code=404, detail="Chưa có giao dịch nào để mô phỏng. Hãy thực hiện một giao dịch trước.")
+
+    sender = db.query(models.User).filter(models.User.id == last_tx.sender_id).first()
+    receiver = db.query(models.User).filter(models.User.id == last_tx.receiver_id).first()
+    nonce_hex = last_tx.nonce if last_tx.nonce else "N/A"
+    already_seen = False
+    try:
+        already_seen = decryptor.nonce_store.seen(nonce_hex)
+    except Exception:
+        pass
+
+    return {
+        "tx_id": last_tx.id,
+        "sender": sender.username if sender else "Unknown",
+        "receiver": receiver.username if receiver else "Unknown",
+        "amount": last_tx.amount,
+        "timestamp": last_tx.timestamp.isoformat(),
+        "nonce": nonce_hex[:32] + "..." if len(nonce_hex) > 32 else nonce_hex,
+        "nonce_full": nonce_hex,
+        "encrypted_payload": last_tx.encrypted_payload[:64] + "..." if len(last_tx.encrypted_payload) > 64 else last_tx.encrypted_payload,
+        "signature": last_tx.signature[:64] + "..." if len(last_tx.signature) > 64 else last_tx.signature,
+        "nonce_already_seen": already_seen,
+        "tx_status": last_tx.tx_status
+    }
+
 @app.post("/api/test/attack")
 def simulate_attack(type: str, request: Request, db: Session = Depends(get_db)):
     last_tx = db.query(models.Transaction).order_by(models.Transaction.timestamp.desc()).first()
@@ -466,17 +705,25 @@ def simulate_attack(type: str, request: Request, db: Session = Depends(get_db)):
             try:
                 # Check nonce via decryptor.nonce_store
                 if decryptor.nonce_store.seen(nonce.hex()):
-                    log = models.SecurityLog(event_type="REPLAY", description=f"Attack Detected: Replay nonce {nonce.hex()}", ip_address=request.client.host)
+                    log = models.SecurityLog(event_type="REPLAY", description=f"Attack Blocked: Replay nonce {nonce.hex()[:16]}... bị từ chối.", ip_address=request.client.host)
                     db.add(log)
                     db.commit()
-                    return {"status": "BLOCKED", "msg": f"Replay detected for nonce {nonce.hex()}"}
+                    raise HTTPException(status_code=400, detail="Attack Blocked: Hệ thống phát hiện và từ chối Replay Attack!")
                 else:
-                    return {"status": "SUCCESS", "msg": "No prior record of nonce (replay not detected)"}
+                    # Register nonce so next replay IS blocked
+                    decryptor.nonce_store.store(nonce.hex(), tx_id=last_tx.id)
+                    log = models.SecurityLog(event_type="REPLAY", description=f"Replay sim: Nonce {nonce.hex()[:16]}... vừa ghi nhận. Bấm lại để thấy chặn.", ip_address=request.client.host)
+                    db.add(log)
+                    db.commit()
+                    return {"status": "RECORDED", "msg": "Nonce đã được ghi nhận. Bấm Replay lần nữa để thấy hệ thống chặn tấn công!"}
+            except HTTPException:
+                raise
             except Exception as e:
                 log = models.SecurityLog(event_type="REPLAY", description=f"Error checking nonce: {str(e)}", ip_address=request.client.host)
                 db.add(log)
                 db.commit()
                 raise HTTPException(status_code=500, detail="Internal Error during replay simulation")
+
 
         elif type == "TAMPER":
             # Tamper will cause AEAD verification failure

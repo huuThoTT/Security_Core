@@ -30,11 +30,14 @@ body {
 .app-container {
     width: 100%;
     max-width: 480px;
-    background: var(--background);
+    background: #ffffff;
     min-height: 100vh;
     padding-bottom: 80px;
-    /* Spacer for bottom nav */
     position: relative;
+    box-shadow: 0 0 50px rgba(0,0,0,0.05);
+    display: flex;       /* Changed to flex for better child management */
+    flex-direction: column; /* ENSURE VERTICAL STACKING */
+    margin: 0 auto;
 }
 
 header {
@@ -146,17 +149,52 @@ header {
     font-weight: 600;
     color: var(--text-muted);
 }
-
-/* Sections */
 .app-section {
+    width: 100%;
     padding: 1.5rem;
     display: none;
-    /* Hidden by default */
+    box-sizing: border-box;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+    width: 100%;
+}
+
+.btn-back {
+    background: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--text-main);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-back:hover {
+    background: var(--primary-light);
+    color: var(--primary);
 }
 
 .app-section.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* CENTER CONTENT */
     animation: fadeIn 0.3s ease-in-out;
+}
+
+.app-section.active > * {
+    width: 100%; /* Ensure children take full width of centered section */
 }
 
 @keyframes fadeIn {

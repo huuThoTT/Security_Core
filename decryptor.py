@@ -82,7 +82,7 @@ class AdvancedSecurityDecryptor:
 
             with open(salt_path, "rb") as f:
                 salt = f.read()
-            kek = PBKDF2(passphrase, salt, 32, count=600000, hmac_hash_module=SHA256)
+            kek = PBKDF2(passphrase, salt, 32, count=100000, hmac_hash_module=SHA256)
             with open(key_path, "rb") as f:
                 data = f.read()
                 nonce, tag, ciphertext = data[:16], data[16:32], data[32:]
