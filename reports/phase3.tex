@@ -1,0 +1,289 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{fancyhdr}
+
+% Cấu hình lề và khoảng cách
+\geometry{margin=1in}
+\onehalfspacing
+
+% Cấu hình Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Đồ án Tốt nghiệp - An toàn Bảo mật}
+\rhead{Phase 3: Core Functions Analysis}
+\cfoot{\thepage}
+
+\begin{document}
+
+% --- TRANG TIÊU ĐỀ HỌC THUẬT ---
+\begin{center}
+    \large \textbf{TRƯỜNG ĐẠI HỌC CỦA BẠN} \\
+    \large \textbf{KHOA CÔNG NGHỆ THÔNG TIN} \\
+    \vspace{0.4cm}
+    \rule{\linewidth}{1pt} \\
+    \vspace{0.3cm}
+    \huge \textbf{BÁO CÁO ĐỒ ÁN TỐT NGHIỆP} \\
+    \Large \textbf{Thiết kế và Cài đặt Security Core Mức độ Cao cho \\ Hệ thống Ví điện tử AT-Wallet} \\
+    \vspace{0.3cm}
+    \textit{Giai đoạn 3: Phân tích Chuyên sâu Mã nguồn và Quy trình Nghiệp vụ} \\
+    \vspace{0.4cm}
+    
+    % Phần thông tin sinh viên được làm nhỏ lại và đưa xuống dòng chữ không để ngang
+    \small
+    \textbf{Sinh viên thực hiện:} Nguyễn Trần Thái Sơn \\
+    \textbf{MSSV:} [Mã số sinh viên] \\
+    \normalsize
+    
+    \vspace{0.2cm}
+    \rule{\linewidth}{1pt}
+\end{center}
+\vspace{0.5cm}
+
+\section{Tổng quan Hệ thống Security Core}
+Chương trình Security Core của AT-Wallet được thiết kế theo kiến trúc module, dựa trên nền tảng Mật mã đường cong Elliptic (ECC). Nhằm tối ưu hóa bảo mật và phục vụ đầy đủ 11 Use Case đặt ra từ các giai đoạn trước, hệ thống được cấu trúc thành **5 hàm cốt lõi (Core Functions)**. 
+
+---
+
+\section{Phân tích Chi tiết 5 Hàm Sinh tử}
+
+\subsection{Hàm 1: Tạo Hạ tầng Khóa số (generate\_ecc\_keys)}
+
+\textbf{1. Ý tưởng (Rationale):} \\
+Mọi hệ thống bảo mật đều cần nền tảng danh tính an toàn. Thay vì sử dụng RSA với độ dài khóa cồng kềnh (thuật toán cổ điển), ý tưởng của hàm này là ứng dụng hệ thống Mật mã đường cong Elliptic (ECC). Việc này giúp tạo ra các cặp khóa vô cùng nhỏ gọn nhưng lại cung cấp độ bảo mật tương đương mật mã quân sự. 
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Vấn đề tốc độ và băng thông}: Khóa RSA-3072 quá lớn đối với thiết bị di động. Hàm giải quyết bằng cách sinh khóa \textbf{Ed25519} (256-bit) cho chữ ký số và \textbf{Curve25519} cho trao đổi khóa.
+    \item \textbf{Vấn đề bảo vệ Master Password}: Hàm tạo ra một tệp \texttt{Salt} ngẫu nhiên (16 byte), giúp chống lại các cuộc tấn công dò mật khẩu người dùng.
+\end{itemize}
+
+\textbf{3. Thông số kỹ thuật \& Mã giả:}
+\begin{itemize}[noitemsep]
+    \item \textbf{Đầu vào (Input)}: \texttt{output\_dir} (Thư mục lưu trữ khóa dự kiến).
+    \item \textbf{Đầu ra (Output)}: Cặp private/public key cho \textit{Sender} và \textit{Receiver} (định dạng PEM) cùng tệp \texttt{salt.bin}.
+    \item \textbf{Xem mã giả chi tiết tại}: Thuật toán số 1 (Phần Phụ lục bên dưới).
+\end{itemize}
+
+---
+
+\subsection{Hàm 2: Dẫn xuất và Đa dạng hóa khóa (perform\_ecdh\_hkdf)}
+
+\textbf{1. Ý tưởng (Rationale):} \\
+Thay vì một bên sinh ra khóa AES và gửi trực tiếp cho bên kia thông qua mạng, ý tưởng là hai bên tự tính toán ra \textbf{khóa dùng chung (Shared Secret)} mà không cần trao đổi khóa bí mật trên môi trường Internet.
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Vấn đề chặn bắt khóa công khai (Eavesdropping)}: Sử dụng giao thức \textbf{ECDH} (Elliptic Curve Diffie-Hellman), kẻ nghe lén không thể tái tạo lại khóa dù bắt được mọi gói tin.
+    \item \textbf{Vấn đề Phân tách quyền}: Sau khi ECDH thiết lập, hàm dùng \textbf{HKDF} (HMAC-based Key Derivation) để "băm" Shared Secret thành các khóa độc lập: khóa mã hóa (Encryption) và khóa xác thực (MAC).
+\end{itemize}
+
+\textbf{3. Thông số kỹ thuật \& Mã giả:}
+\begin{itemize}[noitemsep]
+    \item \textbf{Đầu vào (Input)}: \texttt{my\_priv\_key} (Khóa bí mật người dùng), \texttt{peer\_pub\_key} (Khóa công khai đối tác).
+    \item \textbf{Đầu ra (Output)}: \texttt{enc\_key} (Khóa mã hóa 32-byte), \texttt{mac\_key} (Khóa toàn vẹn 32-byte).
+    \item \textbf{Xem mã giả chi tiết tại}: Thuật toán số 2 (Phần Phụ lục bên dưới).
+\end{itemize}
+
+---
+
+\subsection{Hàm 3: Đóng gói Bảo mật Giao dịch (encrypt\_and\_sign)}
+
+\textbf{1. Ý tưởng (Rationale):} \\
+Chuyển đổi giao dịch tài chính thông thường thành một "Kén sắt" (\textbf{Secure Envelope}). Kén sắt này che giấu toàn bộ nội dung, phân quyền truy cập, đồng thời đóng dấu "triện" không thể giả mạo của người gửi.
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Chống rò rỉ dữ liệu (Sniffing)}: Hàm thực thi mã hóa siêu tốc \textbf{AES-256 GCM}.
+    \item \textbf{Chống giả mạo (Spoofing) \& Chối bỏ (Repudiation)}: Dùng chữ ký số \textbf{Ed25519} để ký lên dữ liệu giao dịch.
+    \item \textbf{Chống Tấn công phát lại (Replay Attack)}: Hàm tiêm thêm Timestamp hệ thống vào Payload chuẩn bị mã hóa.
+\end{itemize}
+
+\textbf{3. Thông số kỹ thuật \& Mã giả:}
+\begin{itemize}[noitemsep]
+    \item \textbf{Đầu vào (Input)}: \texttt{data} (Dữ liệu), \texttt{sender\_sig\_priv} (Khóa ký số), \texttt{sender\_kex\_priv}, \texttt{receiver\_kex\_pub}.
+    \item \textbf{Đầu ra (Output)}: \texttt{envelope} (Gói tin nguyên khối), \texttt{signature} (Chữ ký điện tử).
+    \item \textbf{Xem mã giả chi tiết tại}: Thuật toán số 3 (Phần Phụ lục bên dưới).
+\end{itemize}
+
+---
+
+\subsection{Hàm 4: Giải mã Kiểm định Toàn vẹn (decrypt\_and\_verify)}
+
+\textbf{1. Ý tưởng (Rationale):} \\
+Tạo ra một bộ "Thuế quan" cho dữ liệu cập bến. Hàm này soi chiếu khắt khe mọi góc độ của Kén sắt để đảm bảo an toàn truyệt đối trước khi cho ứng dụng đọc dữ liệu.
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Giải quyết Data Tampering (Man-In-The-Middle)}: Hàm sử dụng Auth Tag của GCM để kiểm tra gói tin. Nếu kẻ gian sửa đổi dữ liệu trên mạng, Tag sẽ không khớp và hàm từ chối nhả dữ liệu.
+    \item \textbf{Hết hạn thời gian (Time Expired)}: Đối chiếu Timestamp nội hàm có quá "cửa sổ" an toàn (Ví dụ: 5 phút) hay không.
+\end{itemize}
+
+\textbf{3. Thông số kỹ thuật \& Mã giả:}
+\begin{itemize}[noitemsep]
+    \item \textbf{Đầu vào (Input)}: \texttt{envelope}, \texttt{rec\_kex\_priv}, \texttt{sender\_kex\_pub}, \texttt{sender\_sig\_pub}, \texttt{signature}.
+    \item \textbf{Đầu ra (Output)}: \texttt{original\_data} (hoàn chỉnh, an toàn tuyệt đối). Nếu lỗi, kích hoạt Hàm 5.
+    \item \textbf{Xem mã giả chi tiết tại}: Thuật toán số 4 (Phần Phụ lục bên dưới).
+\end{itemize}
+
+---
+
+\subsection{Hàm 5: Kích hoạt Phòng vệ \& Log An ninh (\_trigger\_alert)}
+
+\textbf{1. Ý tưởng (Rationale):} \\
+Hàm này là trung tâm của nguyên lý \textbf{Fail-Secure} (Thiên về Bảo vệ hơn là Hoạt động). Một hệ thống tốt không báo chi tiết lỗi cho hacker mà đóng băng luôn quá trình.
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Vấn đề dò lỗi qua Error Message}: Tránh việc in lỗi mã nguồn ra cho hacker. Hàm này xuất ra một ngoại lệ bảo mật chung chung và chặn đứt phản hồi.
+    \item \textbf{Lưu vết điều tra (Audit Logs)}: Ghi log thời gian, nội dung rủi ro toàn bộ lên server nội bộ để điều tra.
+\end{itemize}
+
+\textbf{3. Thông số kỹ thuật \& Mã giả:}
+\begin{itemize}[noitemsep]
+    \item \textbf{Đầu vào (Input)}: \texttt{message} (Mã lý do phát hiện tấn công).
+    \item \textbf{Đầu ra (Output)}: Ngoại lệ (SecurityAlert) \& Lưu file \texttt{advanced\_audit.log}.
+    \item \textbf{Xem mã giả chi tiết tại}: Thuật toán số 5 (Phần Phụ lục bên dưới).
+\end{itemize}
+
+\newpage
+% --- PHẦN MÃ GIẢ ĐƯỢC ĐƯA XUỐNG DƯỚI DẠNG PHỤ LỤC ---
+\section{Phụ lục: Chi tiết Mã giả Thuật toán}
+\textit{Ghi chú: Toàn bộ mã giả được tập hợp tại đây để phục vụ cho việc đối chiếu và thẩm định logic mà không làm gián đoạn việc đọc hiểu nghiệp vụ ở các chương trên.}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Thư mục lưu trữ }
+\KwOut{Các tệp khóa PEM (Singature, KEX) và Salt}
+\Begin{
+    \tcc{1. Sinh khóa Chữ ký số siêu việt Ed25519}
+    \ForEach{User in (Sender, Receiver)}{
+        $(Priv_{sig}, Pub_{sig}) \leftarrow \text{ECC.Generate(curve="ed25519")}$\;
+        Lưu $Priv_{sig}$ và $Pub_{sig}$ ra ổ đĩa\;
+    }
+    \tcc{2. Sinh khóa KEX (Key Exchange) Curve25519}
+    \ForEach{User in (Sender, Receiver)}{
+        $(Priv_{kex}, Pub_{kex}) \leftarrow \text{ECC.Generate(curve="curve25519")}$\;
+        Lưu $Priv_{kex}$ và $Pub_{kex}$ ra ổ đĩa\;
+    }
+    \tcc{3. Sinh Salt ngẫu nhiên cho PBKDF2}
+    $Salt \leftarrow \text{RandomBytes}(16)$\;
+    Khoá tệp nhị phân $Salt$\;
+}
+\caption{generate\_ecc\_keys - Sinh hạ tầng bảo mật}
+\end{algorithm}
+
+\vspace{0.5cm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Khóa bí mật KEX của mình $Pr_{mine}$, Khóa KEX công khai của bạn $Pu_{peer}$}
+\KwOut{Hai khóa độc lập: Mã hóa (Enc) và Xác thực (MAC)}
+\Begin{
+    \tcc{1. Tạo Master Secret qua đường cong Curve25519}
+    $SharedSecret \leftarrow \text{ECDH\_Agreement}(Pr_{mine}, Pu_{peer})$\;
+    \tcc{2. Đa dạng hóa Master Secret bằng HKDF}
+    $MasterKey \leftarrow \text{HKDF\_Generate}(SharedSecret, \text{Length}=64, \text{Digest}=\text{SHA256})$\;
+    \tcc{3. Phân cắt làm 2 khóa phục vụ AES-GCM}
+    $EncKey \leftarrow MasterKey[0:32]$\;
+    $MacKey \leftarrow MasterKey[32:64]$\;
+    \Return{(EncKey, MacKey)}\;
+}
+\caption{perform\_ecdh\_hkdf - Thoả thuận khóa hoàn hảo (PFS)}
+\end{algorithm}
+
+\vspace{0.5cm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Dữ liệu tài chính $M$, Bộ khóa thao tác}
+\KwOut{(Envelope GCM, Chữ ký số)}
+\Begin{
+    \tcc{1. Khởi tạo khóa mã hóa từ Hàm ECDH-HKDF}
+    $(K_{enc}, K_{mac}) \leftarrow \text{CALL } \text{perform\_ecdh\_hkdf}(...)$\;
+    \tcc{2. Tiêm thời gian (TimeStamp) thiết lập Data Freshness}
+    $T \leftarrow \text{CurrentSystemTime()}$\;
+    $Payload_{new} \leftarrow T || M$\;
+    \tcc{3. Mã hóa kén sắt AES-GCM (Bảo mật)}
+    $(Ciphertext, Tag, Nonce) \leftarrow \text{AES-GCM-Encrypt}(K_{enc}, Payload_{new})$\;
+    \tcc{4. Đóng "Triện" Chữ ký số (Xác thực tác giả)}
+    $Signature \leftarrow \text{EdDSA\_Sign}(Sender\_Priv_{sig}, M)$\;
+    \Return{($Nonce || Tag || Ciphertext$, $Signature$)}\;
+}
+\caption{encrypt\_and\_sign - Đóng gói và Ký số nguyên khối}
+\end{algorithm}
+
+\vspace{0.5cm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Gói Envelope thu được, Chữ ký S, Bộ khóa xác thực của máy khách}
+\KwOut{Dữ liệu gốc $M$ hoặc Kích hoạt Báo động}
+\Begin{
+    $(K_{enc}, \_) \leftarrow \text{CALL } \text{perform\_ecdh\_hkdf}(Pr_{rec\_kex}, Pu_{sen\_kex})$\;
+    Chia nhỏ Envelope thành $\rightarrow \leftarrow (Nonce, Tag, Cipher)$\;
+    
+    \tcc{KIỂM ĐỊNH LỚP 1: Replay Attack (Tính Trùng lặp/Tươi mới)}
+    \If{$Nonce \in \text{DANH SÁCH NONCE ĐÃ XỬ LÝ}$}{
+        \textbf{CALL} trigger\_alert("Tấn công phát lại. Dừng khẩn cấp!")\;
+    }
+    
+    \tcc{KIỂM ĐỊNH LỚP 2: Can thiệp vật lý (Data Tampering)}
+    \Try{
+        $Payload_{dec} \leftarrow \text{AES-GCM-Decrypt}(K_{enc}, Nonce, Tag, Cipher)$\;
+    }{
+        \Catch{\text{IntegrityError}}{
+            \textbf{CALL} trigger\_alert("Gói tin đã bị sửa đổi trên đường truyền!")\;
+        }
+    }
+    
+    \tcc{KIỂM ĐỊNH LỚP 3: Hết hạn sinh học (Timestamp validation)}
+    $T \leftarrow Payload_{dec}[0:8]$ và $M \leftarrow Payload_{dec}[8:]$\;
+    \If{$|\text{CurrentTime} - T| > 300\text{s}$ (Quá 5 phút)}{
+        \textbf{CALL} trigger\_alert("Giao dịch bị trễ. Hủy bỏ phòng vệ!")\;
+    }
+    
+    \tcc{KIỂM ĐỊNH LỚP 4: Giả mạo thẻ chữ ký (EdDSA Validation)}
+    \Try{
+        $\text{EdDSA\_Verify\_Signature}(Pu_{sen\_sig}, M, S)$\;
+    }{
+        \Catch{\text{InvalidSignature}}{
+            \textbf{CALL} trigger\_alert("Chữ ký giả mạo. Phủ quyết danh tính!")\;
+        }
+    }
+    \Return{$M$}\;
+}
+\caption{decrypt\_and\_verify - Bộ lưới lọc bảo vệ Ví Wallet}
+\end{algorithm}
+
+\vspace{0.5cm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Nội dung chuỗi cảnh báo an ninh}
+\KwOut{Hủy kết nối mạng và Lưu File Audit}
+\Begin{
+    $T \leftarrow \text{CurrentTime("YYYY-MM-DD HH:MM:SS")}$\;
+    $LogMsg \leftarrow \text{"[CRITICAL SECURITY ALERT] " + } T \text{ + ": " + Nội\_Dung}$\;
+    \tcc{1. Lưu Vết Điều Tra Nội Bộ}
+    $\text{File.Append("advanced\_audit.log", LogMsg)}$\;
+    \tcc{2. Phản Ứng Fail-Secure (Chặn Cửa Hacker)}
+    $\text{PrintConsole(LogMsg)}$\;
+    \textbf{RAISE} SecurityAlert(Nội\_Dung)\;
+}
+\caption{\_trigger\_alert - Module phản ứng nhanh Cảnh báo Đỏ}
+\end{algorithm}
+
+\end{document}

@@ -1,0 +1,280 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, shadow}
+
+% Cấu hình lề và khoảng cách
+\geometry{margin=1in}
+\onehalfspacing
+
+% Cấu hình Code Snippets (lstlisting) chuyên nghiệp
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstset{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\small,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=lines,
+    rulecolor=\color{black}
+}
+
+% Cấu hình Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Đồ án Mã hóa ứng dụng và an ninh thông tin}
+\rhead{Kiểm định Chi tiết }
+\cfoot{\thepage}
+
+\begin{document}
+
+% --- TRANG TIÊU ĐỀ HỌC THUẬT ---
+\begin{center}
+    {\Large \textbf{ĐỀ CƯƠNG ĐỒ ÁN TỐT NGHIỆP}} \\
+    \vspace{0.5em}
+    {\large \textbf{HỆ THỐNG MÃ HOÁ GIAO DỊCH AN TOÀN}} \\
+    \textbf{Tên sản phẩm: Security Core}
+\end{center}
+
+\noindent
+\begin{tabular}{@{}l l p{3cm} l}
+\textbf{Sinh viên thực hiện:} & & & \textbf{Giảng viên hướng dẫn:} \\
+\quad Thái Hữu Thọ & - 22127400 & & Thầy Nguyễn Đình Thúc \\
+\quad              &            & & Thầy Ngô Đình Hy \\
+\end{tabular}
+
+\vspace{0.5cm}
+\rule{\linewidth}{1pt}
+\vspace{1cm}
+
+
+\section{Tổng quan Chiến lược Kiểm thử}
+Giai đoạn 5 là bước xác thực cuối cùng, chuyển dịch từ thiết kế lý thuyết sang thực thi thực tế. Chiến lược kiểm thử được áp dụng là **Adversarial Security Testing** (Kiểm thử an ninh đối kháng). Thay vì chỉ kiểm tra các chức năng bình thường, sinh viên đóng vai trò là kẻ tấn công (Attacker) để tìm cách phá vỡ các lớp bảo vệ đã thiết lập.
+
+\vspace{0.5cm}
+\begin{center}
+\begin{tabular}{|p{0.9\textwidth}|}
+\hline
+\textbf{TÓM TẮT THÔNG SỐ KIỂM ĐỊNH CỐT LÕI} \\
+\hline
+\textit{Báo cáo này tập trung vào quy trình kiểm thử đối kháng cho \textbf{Security Core}. Mục tiêu chính là xác thực khả năng phòng thủ trước các kịch bản tấn công thực tế, đảm bảo an toàn cho hệ sinh thái ví điện tử.} \\
+\begin{itemize}[noitemsep]
+    \item \textbf{Mã hóa:} AES-256-GCM (với 16B Tag và 16B Nonce).
+    \item \textbf{Chữ ký số:} EdDSA (Cơ chế Ed25519 - RFC 8032).
+    \item \textbf{Dẫn xuất khóa:} PBKDF2-HMAC-SHA256 (600,000 Iterations).
+    \item \textbf{Persistence:} Nonce Database (\texttt{nonces.json}) \& Persistent Salt.
+\end{itemize} \\
+\hline
+\end{tabular}
+\end{center}
+\vspace{0.5cm}
+
+Mỗi kịch bản kiểm thử (Test Case) được ánh xạ trực tiếp đến các hàm (Functions) và biến (Variables) cốt lõi trong 3 module: \texttt{keygen.py}, \texttt{encryptor.py}, và \texttt{decryptor.py}.
+
+\section{Sơ đồ Luồng Bảo mật và Xử lý Lỗi (TikZ Flow)}
+Sơ đồ dưới đây mô tả quy trình "tự vệ" của hệ thống khi tiếp nhận một gói tin (Secure Envelope). Các điểm kiểm tra (Checkpoints) sẽ kích hoạt ngoại lệ \texttt{SecurityAlert} nếu có dấu hiệu xâm nhập.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.5cm and 2cm,
+        startstop/.style={rectangle, rounded corners, draw=black, thick, fill=gray!20, minimum width=3cm, minimum height=1cm, align=center},
+        process/.style={rectangle, draw=black, thick, fill=blue!10, minimum width=3.5cm, minimum height=1cm, align=center},
+        decision/.style={diamond, draw=black, thick, fill=yellow!20, aspect=2, minimum width=3.5cm, align=center},
+        error/.style={rectangle, draw=red, thick, fill=red!10, text=red, minimum width=3cm, minimum height=1cm, align=center},
+        arrow/.style={-{Stealth[length=3mm]}, thick}
+    ]
+        % Nodes
+        \node[startstop] (start) {Tiếp nhận Gói tin};
+        \node[process, below=of start] (p1) {Giải mã Private Key \\ (KEK / PBKDF2)};
+        \node[decision, below=of p1] (d1) {Mật khẩu đúng?};
+        
+        \node[process, below=of d1, yshift=-0.5cm] (p2) {Kiểm tra Nonce DB \\ (Anti-Replay)};
+        \node[decision, below=of p2] (d2) {Nonce mới?};
+        
+        \node[process, below=of d2, yshift=-0.5cm] (p3) {Xác thực AES-GCM \\ (AEAD Tag)};
+        \node[decision, below=of p3] (d3) {Toàn vẹn?};
+        
+        \node[error, right=of d1, xshift=1cm] (e1) {Lỗi bẻ khóa \\ (Dictionary Attack)};
+        \node[error, right=of d2, xshift=1cm] (e2) {Cảnh báo Replay! \\ (SecurityAlert)};
+        \node[error, right=of d3, xshift=1cm] (e3) {Cảnh báo Tampering! \\ (Integrity alert)};
+
+        \node[startstop, font=\bfseries, fill=green!20, below=of d3, yshift=-0.5cm] (end) {GIAO DỊCH HỢP LỆ};
+
+        % Arrows
+        \draw[arrow] (start) -- (p1);
+        \draw[arrow] (p1) -- (d1);
+        \draw[arrow] (d1) -- node[left] {Có} (p2);
+        \draw[arrow] (d1) -- node[above] {Không} (e1);
+        
+        \draw[arrow] (p2) -- (d2);
+        \draw[arrow] (d2) -- node[left] {Có} (p3);
+        \draw[arrow] (d2) -- node[above] {Không} (e2);
+        
+        \draw[arrow] (p3) -- (d3);
+        \draw[arrow] (d3) -- node[left] {Có} (end);
+        \draw[arrow] (d3) -- node[above] {Không} (e3);
+    \end{tikzpicture}
+    \caption{Sơ đồ Luồng Tự vệ (Self-Defense Flowchart) của Lõi Bảo mật}
+\end{figure}
+
+\newpage
+
+\section{Phân tích Chi tiết Kịch bản Kiểm thử TC-01 đến TC-08}
+
+Dưới đây là bảng đặc tả chi tiết cho từng kịch bản, bao gồm cả tham số biến số và hàm thực thi tương ứng.
+
+\subsection{Nhóm 1: Tính đúng đắn của Thuật toán (Functional & Correctness)}
+
+\textbf{TC-01: Kiểm định Luồng Mã hóa lai Toàn diện}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Đảm bảo sự phối hợp giữa ECDH, AES-256-GCM và Ed25519.
+    \item \textbf{Đầu vào (Input)}: \texttt{data = b"Payment: 5,000,000 VND"}; \texttt{Pass = "ATWallet@2026"}.
+    \item \textbf{Hàm xử lý}: \texttt{encrypt\_and\_sign()} trong \texttt{encryptor.py}.
+    \item \textbf{Phân tích mã nguồn}:
+\end{itemize}
+\begin{lstlisting}
+# Line 51: encryptor.py
+cipher = AES.new(enc_key, AES.MODE_GCM)
+ciphertext, tag = cipher.encrypt_and_digest(payload)
+# Line 57: Signature generation
+signer = eddsa.new(sender_sig_key, 'rfc8032')
+signature = signer.sign(data)
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Kết quả thực tế}: Giải mã tại Receiver trả về đúng chuỗi byte ban đầu. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-02: Kiểm định Hạ tầng sinh Khóa (Keygen Hardening)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Xác minh tính an toàn của KEK (Key Encryption Key).
+    \item \textbf{Tham số băm}: \texttt{iterations = 600,000}, \texttt{hash = SHA256}.
+    \item \textbf{Hàm xử lý}: \texttt{generate\_ecc\_keys()} trong \texttt{keygen.py}.
+    \item \textbf{Kết quả}: File \texttt{.enc} được tạo ra với cấu trúc: \texttt{Nonce (16B) + Tag (16B) + EncryptedPEM}. Khóa bí mật không thể bị đọc ở dạng thô. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-03: Thử nghiệm dữ liệu lớn (Large Data Stress Test)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Kiểm tra độ ổn định và quản lý bộ nhớ của AES-GCM.
+    \item \textbf{Input}: File ảnh/bin dung lượng 5MB.
+    \item \textbf{Kết quả}: Thời gian xử lý < 0.1s. Toàn vẹn dữ liệu được đảm bảo tuyệt đối sau khi giải mã. **Trạng thái: PASS**.
+\end{itemize}
+
+\subsection{Nhóm 2: Chống Tấn công Đối kháng (Adversarial Defense)}
+
+\textbf{TC-04: Tấn công Sửa đổi bản mã (Ciphertext Tampering - MITM)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Kiểm chứng cơ chế AEAD (Authenticated Encryption with Associated Data).
+    \item \textbf{Input}: Thay đổi bit cuối cùng của \texttt{envelope[32:]}.
+    \item \textbf{Phân tích mã nguồn}: Hàm \texttt{decrypt\_and\_verify()} trong \texttt{decryptor.py} gọi:
+\end{itemize}
+\begin{lstlisting}
+# decryptor.py: Line 47
+decrypted_payload = cipher_aes.decrypt_and_verify(ciphertext, tag)
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Kết quả}: Thư viện mật mã ném lỗi \texttt{MAC check failed}. Hệ thống log cảnh báo: \texttt{[SECURITY\_\ BREACH] Internal Crypto Error}. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-05: Tấn công Sửa đổi mã xác thực (Auth Tag Tampering)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Đảm bảo Tag GCM không thể bị làm giả.
+    \item \textbf{Input}: Sửa đổi 1 byte trong \texttt{tag} (vị trí byte 16-32 của envelope).
+    \item \textbf{Kết quả}: Tương tự TC-04, việc giải mã bị chặn đứng hoàn toàn. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-06: Tấn công Giả mạo Chữ ký số (Signature Forgery)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Xác minh tính chống chối bỏ của EdDSA (Ed25519).
+    \item \textbf{Thực thi}: Hacker thay thế trường \texttt{signature} (64 bytes) bằng một chuỗi ngẫu nhiên.
+    \item \textbf{Phân tích mã nguồn}:
+\end{itemize}
+\begin{lstlisting}
+# decryptor.py: Line 59
+try:
+    verifier.verify(original_data, signature)
+except ValueError:
+    self._trigger_alert("Digital Signature Forgery detected!")
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Kết quả}: Chữ ký giả bị phát hiện ngay lập tức. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-07: Tấn công Phát lại (Replay Attack - Nonce Reuse)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Đảm bảo gói tin chỉ được sử dụng một lần duy nhất.
+    \item \textbf{Cơ chế}: Đối soát trường \texttt{nonce\_hex} với cơ sở dữ liệu \texttt{nonces.json}.
+    \item \textbf{Kết quả}: Việc gửi lại gói tin lần thứ 2 kích hoạt cảnh báo: \texttt{CRITICAL SECURITY ALERT: Replay Attack Detected}. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-08: Tấn công Trễ và Sai lệch thời gian (Timing/Freshness)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Xác minh cửa sổ thời gian (Sliding Window) 300 giây.
+    \item \textbf{Input}: Sửa đổi \texttt{timestamp} trong bản mã lùi về quá khứ 10 phút.
+    \item \textbf{Kết quả}: Hệ thống tính toán \texttt{abs(time.time() - timestamp) > 300} và từ chối xử lý. **Trạng thái: PASS**.
+\end{itemize}
+
+\newpage
+
+\section{Phân tích Rủi ro và Giải pháp Giảm thiểu (Risk Matrix)}
+
+Bảng dưới đây trình bày các rủi ro an ninh thực tế và cách lõi bảo mật Wallet phản ứng để bảo vệ tài sản người dùng.
+
+\begin{table}[H]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tabular}{@{}llccp{6cm}@{}}
+    \toprule
+    ID & Loại Rủi ro & Tác động & Xác suất & Giải pháp Giảm thiểu (Wallet) \\ \midrule
+    **R1** & Tấn công từ điển mật khẩu & Cao & Trung bình & PBKDF2 (600k rounds) làm chậm tốc độ thử mật khẩu xuống 1 lần/0.5s. \\
+    **R2** & Nghe lén/Chặn gói tin (Sniffing) & Trung bình & Cao & Mã hóa lai ECC+AES đảm bảo bản tin là vô nghĩa với kẻ tấn công. \\
+    **R3** & Sửa đổi nội dung (Man-in-the-middle) & Rất cao & Cao & Authentication Tag (AES-GCM) và Chữ ký số (Ed25519) đảm bảo toàn vẹn. \\
+    **R4** & Tấn công phát lại (Replay) & Cao & Trung bình & Lưu trữ Nonce vĩnh viễn tại \texttt{nonces.json} kèm kiểm tra Timestamp. \\
+    **R5** & Lộ file khóa bí mật tĩnh & Rất cao & Thấp & Khóa bí mật luôn ở trạng thái mã hóa (Encrypted-at-rest) trên đĩa cứng. \\ \bottomrule
+    \end{tabular}
+    }
+    \caption{Ma trận Đánh giá Rủi ro và Chiến lược phòng thủ của Wallet}
+\end{table}
+
+\section{Đánh giá Hiệu năng (Performance Benchmarking)}
+Dựa trên thực nghiệm đo đạc bằng script \texttt{benchmark\_security.py} thực hiện trên hệ thống:
+\begin{itemize}
+    \item **Dẫn xuất khóa (PBKDF2)**: 0.4903 giây. Ngưỡng thời gian này đạt chuẩn của NIST, cân bằng giữa trải nghiệm người dùng và khả năng chống brute-force.
+    \item **Trao đổi khóa (ECDH - X25519)**: 0.0001 giây. Cho phép thực hiện hàng ngàn giao dịch mỗi giây.
+    \item **Mã hóa (AES-GCM)**: 0.0168 giây trên mỗi 1MB dữ liệu.
+\end{itemize}
+
+\section{Kết luận Giai đoạn 5}
+Thông qua 8 kịch bản kiểm thử chi tiết và ma trận phân tích rủi ro chuyên sâu, có thể khẳng định dự án **Wallet Security Core** đã đạt được sự hoàn thiện về cả mặt chức năng lẫn bảo mật đối kháng. Hệ thống có khả năng tự phát hiện và chặn đứng các hành vi can thiệp trái phép, đảm bảo tính Toàn vẹn, Bí mật và Xác thực cho hệ thống ví điện tử.
+
+\end{document}

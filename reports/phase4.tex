@@ -1,0 +1,255 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+
+% Cấu hình lề và khoảng cách
+\geometry{margin=1in}
+\onehalfspacing
+
+% Cấu hình Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Đồ án Tốt nghiệp - An toàn Bảo mật}
+\rhead{Phase 4: ERD \& DFD Architecture}
+\cfoot{\thepage}
+
+\begin{document}
+
+% --- TRANG TIÊU ĐỀ HỌC THUẬT ---
+\begin{center}
+    \vspace*{1cm}
+    \huge \textbf{BÁO CÁO ĐỒ ÁN TỐT NGHIỆP} \\
+    \Large \textbf{Thiết kế Hệ thống Cơ sở Dữ liệu và Luồng Dữ liệu \\ Lõi Bảo mật cho AT-Wallet} \\
+    \vspace{0.3cm}
+    \textit{Giai đoạn 4: Mô hình hóa ERD (Entity-Relationship) và DFD (Data Flow)} \\
+    \vspace{0.4cm}
+    
+    \small
+    \textbf{Sinh viên thực hiện:} Nguyễn Trần Thái Sơn \\
+    \textbf{MSSV:} [Mã số sinh viên] \\
+    \normalsize
+    
+    \vspace{0.2cm}
+    \rule{\linewidth}{1pt}
+\end{center}
+\vspace{0.5cm}
+
+\section{Tổng quan Giai đoạn 4}
+Sau khi hoàn thiện lõi bảo mật (Security Core) bằng Mật mã đường cong Elliptic (ECC) ở Giai đoạn 3, Giai đoạn 4 tiến hành thiết kế hệ thống dữ liệu xoay quanh lõi bảo mật này. Báo cáo này trình bày hai khối kiến trúc chính:
+\begin{itemize}
+    \item \textbf{ERD (Entity-Relationship Diagram)}: Bản thiết kế các thực thể tĩnh, cấu trúc cơ sở dữ liệu để lưu trữ an toàn thông tin người dùng, ví tiền và khóa mật mã.
+    \item \textbf{DFD (Data Flow Diagram)}: Bản đồ hoạt động động, mô tả luồng di chuyển của dữ liệu qua các hàm mã hóa sinh tử.
+\end{itemize}
+
+---
+
+\section{Mô hình Thực thể Liên kết (ERD - Database Schema)}
+Hệ thống AT-Wallet được cấu trúc bởi 5 thực thể cốt lõi. Mọi dữ liệu nhạy cảm đều được mã hóa hoặc băm trước khi lưu trữ.
+
+\subsection{1. Thực thể Khách hàng (Users)}
+Bảng lưu trữ thông tin định danh của khách hàng. Không lưu mật khẩu gốc (Plaintext).
+\begin{itemize}[noitemsep]
+    \item \texttt{UserID (PK)}: Mã định danh duy nhất (UUID).
+    \item \texttt{Username}: Tên đăng nhập.
+    \item \texttt{PasswordHash}: Số băm mật khẩu được tạo bởi PBKDF2 (600,000 vòng lặp).
+    \item \texttt{Salt}: Chuỗi muối 16-byte ngẫu nhiên chống Rainbow Table.
+    \item \texttt{Role}: Phân quyền (User/Admin).
+    \item \texttt{CreatedAt}: Thời điểm tạo tài khoản.
+\end{itemize}
+
+\subsection{2. Thực thể Ví điện tử (Wallets)}
+Mỗi người dùng sở hữu một ví. Số dư được bảo vệ bằng mã hóa.
+\begin{itemize}[noitemsep]
+    \item \texttt{WalletID (PK)}: Mã ví định danh.
+    \item \texttt{UserID (FK)}: Liên kết 1-1 với bảng Users.
+    \item \texttt{Balance}: Số dư hiện tại (Được mã hóa tĩnh bằng AES Master Key).
+    \item \texttt{Status}: Trạng thái (Active/Locked/Frozen).
+    \item \texttt{LastUpdated}: Dấu thời gian biến động cập nhật cuối.
+\end{itemize}
+
+\subsection{3. Thực thể Kho khóa Mật mã (KeyStore)}
+Bảng sinh tử thứ ba đóng vai trò như một PKI (Public Key Infrastructure) nội bộ. Nơi phân phối khóa công khai ECC. Khóa bí mật tuyệt đối không lưu trên server.
+\begin{itemize}[noitemsep]
+    \item \texttt{KeyID (PK)}: Mã định danh bộ khóa.
+    \item \texttt{UserID (FK)}: Người sở hữu.
+    \item \texttt{PubKey\_Signature}: Khóa công khai Ed25519 dùng để xác minh chữ ký.
+    \item \texttt{PubKey\_KeyExchange}: Khóa công khai Curve25519 dùng cho giao thức ECDH.
+    \item \texttt{Status}: Valid/Revoked.
+\end{itemize}
+
+\subsection{4. Thực thể Lịch sử Giao dịch (Transactions)}
+Lưu trữ các kén sắt (Secure Envelopes) không thể bị làm giả.
+\begin{itemize}[noitemsep]
+    \item \texttt{TxID (PK)}: Mã giao dịch.
+    \item \texttt{SenderID (FK)} \& \texttt{ReceiverID (FK)}: Người gửi và nhận.
+    \item \texttt{EncryptedPayload}: Khối Ciphertext chứa số tiền và thông điệp (AES-GCM).
+    \item \texttt{AuthTag} \& \texttt{Nonce}: Tham số toàn vẹn của AES-GCM.
+    \item \texttt{DigitalSignature}: Chữ ký điện tử EdDSA (Ed25519) của Sender.
+    \item \texttt{Timestamp}: Thời gian thực hiện (Phục vụ Freshness Check).
+\end{itemize}
+
+\subsection{5. Thực thể Nhật ký An ninh (SecurityLogs)}
+Hỗ trợ cơ chế Fail-Secure. Điểm tập kết của các \texttt{\_trigger\_alert()}.
+\begin{itemize}[noitemsep]
+    \item \texttt{LogID (PK)}: Mã log.
+    \item \texttt{EventType}: Loại cảnh báo (Replay Attack, Tampering, Signature Forgery).
+    \item \texttt{Description}: Chi tiết mã lỗi nội bộ.
+    \item \texttt{Timestamp}: Thời điểm xảy ra sự cố.
+    \item \texttt{IPAddress}: Địa chỉ tấn công.
+\end{itemize}
+
+\subsection{6. Liên kết giữa các Thực thể (Table Relationships)}
+Các bảng trong cơ sở dữ liệu được rắp nối chặt chẽ theo nguyên lý toàn vẹn dữ liệu (Referential Integrity):
+\begin{itemize}
+    \item \textbf{Users $\leftrightarrow$ Wallets (1-1)}: Mỗi khách hàng (User) chỉ sở hữu duy nhất một Ví (Wallet) định danh. \texttt{Wallets.UserID} chiếu tới \texttt{Users.UserID}.
+    \item \textbf{Users $\leftrightarrow$ KeyStore (1-N)}: Một khách hàng có thể sở hữu nhiều bộ khóa theo dòng thời gian (Ví dụ thao tác cấp lại khóa mới khi nghi ngờ bị lộ). Tuy nhiên, tại một thời điểm chỉ có 1 bộ khóa mang trạng thái \texttt{Valid}. \texttt{KeyStore.UserID} chiếu tới \texttt{Users.UserID}.
+    \item \textbf{Wallets $\leftrightarrow$ Transactions (1-N)}: Một ví điện tử có thể khởi tạo hoặc nhận nhiều giao dịch tài chính. Cả \texttt{SenderWalletID} và \texttt{ReceiverWalletID} trong bảng \textbf{Transactions} đều là khóa ngoại chiếu tới \texttt{WalletID} trong bảng \textbf{Wallets}. Hai trường này vạch ra luồng dịch chuyển tĩnh của dòng tiền.
+    \item \textbf{SecurityLogs}: Bảng này đứng độc lập, không ép ràng buộc khóa ngoại cứng tới \texttt{UserID}. Mục đích là để vẫn ghi nhận được log tấn công từ những nguồn ngoại lai (chưa đăng nhập/người lạ cố tình ném gói tin xấu vào hệ thống).
+\end{itemize}
+
+\vspace{0.5cm}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        entity/.style={rectangle, draw=black, thick, minimum width=3.5cm, minimum height=1.5cm, align=center},
+        relationship/.style={diamond, draw=black, thick, aspect=1.8, minimum width=4cm, minimum height=1.5cm, align=center},
+        link/.style={draw, thick, -}
+    ]
+        % Nodes
+        \node[entity] (user) at (0, 0) {User};
+        \node[relationship] (uw) at (5, 0) {User\_Wallet};
+        \node[entity] (wallet) at (10, 0) {Wallet};
+        
+        \node[relationship] (uk) at (0, -4) {User\_Keystore};
+        \node[entity] (keystore) at (0, -8) {Keystore};
+        
+        \node[relationship] (wt) at (10, -4) {Wallet\_Transaction};
+        \node[entity] (transaction) at (10, -8) {Transaction};
+        
+        % Edges
+        \draw[link] (user) -- node[above] {1} (uw);
+        \draw[link] (uw) -- node[above] {1} (wallet);
+        
+        \draw[link] (user) -- node[right] {1} (uk);
+        \draw[link] (uk) -- node[right] {n} (keystore);
+        
+        \draw[link] (wallet) -- node[right] {1} (wt);
+        \draw[link] (wt) -- node[right] {n} (transaction);
+    \end{tikzpicture}
+    \caption{Mô hình khái niệm Thực thể - Liên kết (Conceptual ERD)}
+\end{figure}
+
+\vspace{0.5cm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{erd_logical.png}
+    \caption{Lược đồ Cơ sở Dữ liệu Mức Logic (Logical Database Schema)}
+\end{figure}
+
+---
+
+\section{Sơ đồ Luồng Dữ liệu (DFD - Data Flow Diagram)}
+Các luồng dữ liệu mô tả sự tương tác giữa các thành phần.
+
+\subsection{DFD Mức Ngữ cảnh (Level 0 - Context Diagram)}
+Nhìn nhận hệ thống từ góc độ tổng quan nhất. Hình dưới đây phác họa luồng giao tiếp cốt lõi giữa các \textbf{Tác nhân ngoài (External Entities)} và \textbf{Hệ thống trung tâm (AT-Wallet Security Core)}.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=3cm and 4.5cm,
+        entity/.style={rectangle, draw, rounded corners, inner sep=10pt, font=\bfseries, fill=blue!10},
+        process/.style={circle, draw, minimum size=3cm, align=center, font=\bfseries, fill=green!10},
+        arrow/.style={-{Stealth[length=3mm]}, thick}
+    ]
+        % Nodes
+        \node[entity] (sender) {Người gửi};
+        \node[process, right=of sender] (system) {0.0\\AT-Wallet\\Security Core};
+        \node[entity, right=of system] (receiver) {Người nhận};
+        
+        % Arrows
+        \draw[arrow] (sender) to[bend left=20] node[above, align=center] {Giao dịch, nạp/rút tiền} (system);
+        \draw[arrow] (system) to[bend left=20] node[below, align=center] {Phản hồi trạng thái,\\Cảnh báo lỗi} (sender);
+        
+        \draw[arrow] (system) to[bend left=20] node[above, align=center] {Dữ liệu giải mã, Tiền} (receiver);
+        \draw[arrow] (receiver) to[bend left=20] node[below, align=center] {Xác nhận nhận} (system);
+    \end{tikzpicture}
+    \caption{Sơ đồ Luồng dữ liệu Mức Ngữ cảnh (Level 0)}
+\end{figure}
+
+\subsection{DFD Mức 1 (Level 1) - Các Tiến trình Cốt lõi}
+Sơ đồ dưới đây phân rã hệ thống lõi thành \textbf{4 tiến trình chính} tương tác mật thiết với các \textbf{Kho dữ liệu (Data Stores)}.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tikzpicture}[
+        entity/.style={rectangle, draw, rounded corners, inner sep=12pt, font=\large\bfseries, fill=blue!10},
+        process/.style={circle, draw, minimum size=3.5cm, align=center, text width=3cm, font=\large\bfseries, fill=green!10},
+        datastore/.style={rectangle, draw, inner sep=12pt, minimum width=4.5cm, font=\large\bfseries, fill=yellow!10},
+        arrow/.style={-{Stealth[length=3.5mm]}, thick, font=\normalsize}
+    ]
+        % Tăng tối đa trục hoành (X-axis) để chữ "Lưu Kén sắt AES" không thể chạm vào lề Box
+        \node[entity] (sender) at (0, 0) {Người gửi};
+        
+        % Tầng trên
+        \node[process] (p1) at (6, -4) {1.0\\Quản lý \\Danh tính};
+        \node[process] (p4) at (24, -4) {4.0\\Giám sát\\An ninh};
+        \node[datastore] (db_log) at (33, -4) {D3: SecurityLogs};
+        
+        % Tầng giữa
+        \node[datastore] (db_key) at (15, -10) {D1: KeyStore DB};
+        
+        % Tầng dưới
+        \node[process] (p2) at (6, -16) {2.0\\Mã hóa\\Giao dịch};
+        \node[datastore] (db_tx) at (15, -16) {D2: Transactions};
+        \node[process] (p3) at (24, -16) {3.0\\Giải mã\\Xác thực};
+        
+        \node[entity] (receiver) at (33, -16) {Người nhận};
+        
+        % Data Flows - Sender to Process
+        \draw[arrow] (sender) to[out=0, in=135] node[above right, align=left, pos=0.6, yshift=2mm] {Thông tin đăng ký,\\PublicKey} (p1);
+        \draw[arrow] (sender) to[out=270, in=150] node[left, align=right, pos=0.5, xshift=-2mm] {Lệnh chuyển tiền} (p2);
+        
+        % Processes to DBs
+        \draw[arrow] (p1) to[out=270, in=135] node[below left, align=right, pos=0.6] {Lưu Public Keys} (db_key);
+        \draw[arrow] (db_key) to[out=225, in=45] node[above left, align=right, pos=0.5] {Cấp Receiver\\PubKey} (p2);
+        \draw[arrow] (db_key) to[out=315, in=135] node[above right, align=left, pos=0.5] {Cấp Sender\\PubKey} (p3);
+        
+        % NHỮNG MŨI TÊN DƯỚI CÙNG LÀM RỘNG VÀ ĐẨY LÊN CAO
+        \draw[arrow] (p2) -- node[above, pos=0.5, yshift=3mm] {Lưu Kén sắt AES} (db_tx);
+        \draw[arrow] (db_tx) -- node[above, pos=0.5, yshift=3mm] {Tải Kén sắt} (p3);
+        
+        % Process 3 to Receiver & Alert
+        \draw[arrow] (p3) -- node[above, pos=0.5, yshift=3mm] {Giải ngân hợp lệ} (receiver);
+        \draw[arrow] (p3) -- node[right, align=left, pos=0.5, xshift=2mm] {Phát hiện ngoại lệ\\(Kích hoạt Alert)} (p4);
+        
+        % Alert to Log and User
+        \draw[arrow] (p4) -- node[above, pos=0.5, yshift=3mm] {Ghi lỗi hệ thống} (db_log);
+        \draw[arrow] (p4) to[out=135, in=45] node[above, pos=0.5, yshift=2mm] {Cảnh báo rủi ro khẩn cấp} (sender);
+        
+    \end{tikzpicture}
+    }
+    \caption{Sơ đồ Luồng dữ liệu Mức 1 (Level 1) - Các luồng mã hóa chuyên sâu}
+\end{figure}
+
+Tiến trình 1.0 (Quản lý Danh tính) băm mật khẩu và nạp khóa public ECC vào \texttt{KeyStore DB}. Tiến trình 2.0 (Khởi tạo) và 3.0 (Xác minh) xử lý dòng tiền luân chuyển thông qua \texttt{Transactions DB}. Tiến trình 4.0 đảm trách Fail-Secure, đóng băng bất kỳ mối đe dọa nào từ Tiến trình 3.0 và ghi đè log hệ thống.
+
+\section{Kết luận}
+Bản thiết kế ERD và DFD đã chứng minh kiến trúc hệ thống dữ liệu hoàn toàn khớp nối (tight-coupled) với tinh thần bảo mật của Lõi Security Core. Từng bit dữ liệu lưu trữ dưới database hay di chuyển trên luồng (in-flight) đều được gắn chặt với các cơ chế ràng buộc mã hóa hiện đại nhất.
+
+\end{document}

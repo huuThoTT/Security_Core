@@ -1,6 +1,6 @@
 # Documentation and Reports
-*.pdf
-*.tex
+# *.pdf
+# *.tex
 *.aux
 *.log
 *.toc
