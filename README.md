@@ -64,12 +64,11 @@ Script sẽ khởi chạy toàn bộ 8 bài test từ lúc đăng nhập, gửi 
 
 ## Danh Sách Tài Khoản Dùng Thử
 
-| Tính năng | Username | Password |
+| Tính năng | Username | Password | 
 |---|---|---|
 | Người gửi / Nạn nhân | `user123` | `user123` |
-| Người nhận tiền     | `user2`   | `user2` |
+| Người nhận tiền     | `user2`   | `123` |
 | Quản trị viên (bị khóa gửi) | `admin`   | `admin` |
 
 *(Tất cả đều dùng mã **Payment PIN** là: `123456`)*
 
-Chúc các thầy cô chấm bài trải nghiệm phần mềm thật thú vị!
