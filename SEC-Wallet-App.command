@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 # Set Python search path so local 'app' package is found
 export PYTHONPATH=$PYTHONPATH:.
 
-echo "▶ Khởi động AT-Wallet Security Core..."
+echo "▶ Khởi động SEC-Wallet Security Core..."
 echo "------------------------------------------------"
 python3 run_desktop.py
 

@@ -4,7 +4,7 @@ import sys
 import webbrowser
 
 def start_server():
-    print("Starting AT-Wallet Security Core (Web Mode)...")
+    print("Starting SEC-Wallet Security Core (Web Mode)...")
     process = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--port", "8000"])
     
     # Wait until server is ready
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     server_proc = start_server()
     
     # 2. Open the URL in the Default Browser (Google Chrome, Safari, etc.)
-    print("Opening AT-Wallet in your Web Browser...")
+    print("Opening SEC-Wallet in your Web Browser...")
     webbrowser.open("http://127.0.0.1:8000")
     
     # 3. Keep the server running

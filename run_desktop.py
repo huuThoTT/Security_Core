@@ -6,7 +6,7 @@ import signal
 import sys
 
 def start_server():
-    print("Starting AT-Wallet Security Core...")
+    print("Starting SEC-Wallet Security Core...")
     process = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--port", "8000"])
     
     # Wait until server is ready
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     
     # 2. Open the Desktop UI Window (simulating a mobile wallet form factor)
     print("Launching Native Interface...")
-    webview.create_window('AT-Wallet Desktop Client', 'http://127.0.0.1:8000', width=450, height=850, resizable=False)
+    webview.create_window('SEC-Wallet Desktop Client', 'http://127.0.0.1:8000', width=450, height=850, resizable=False)
     webview.start()
     
     # 3. Clean up the backend when the UI is closed

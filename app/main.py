@@ -104,7 +104,7 @@ def seed_initial_data():
 seed_initial_data()
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="AT-Wallet Security Core API")
+app = FastAPI(title="SEC-Wallet Security Core API")
 
 # Rate Limiter Setup
 limiter = Limiter(key_func=get_remote_address)
@@ -196,7 +196,7 @@ def register(request: Request, user: schemas.UserCreate, db: Session = Depends(g
     db.refresh(new_user)
     
     # Return User data entirely including totp_secret for UX setup
-    totp_uri = pyotp.totp.TOTP(totp_secret).provisioning_uri(name=user.username, issuer_name="AT-Wallet Secure")
+    totp_uri = pyotp.totp.TOTP(totp_secret).provisioning_uri(name=user.username, issuer_name="SEC-Wallet Secure")
     
     return {
         "user": {"id": new_user.id, "username": new_user.username, "role": new_user.role},

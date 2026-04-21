@@ -47,7 +47,7 @@ class AdvancedSecurityEncryptor:
         shared_secret = key_agreement(static_priv=my_priv_key, static_pub=peer_pub, kdf=lambda x: x)
         
         # Derive encryption and mac keys
-        master_key = HKDF(shared_secret, 64, b"AT-Wallet-Salt", SHA256)
+        master_key = HKDF(shared_secret, 64, b"SEC-Wallet-Salt", SHA256)
         return master_key[:32], master_key[32:]
 
     def encrypt_and_sign(self, data: bytes, sender_sig_priv_path: str, receiver_kex_pub_path: str, passphrase: str = None, salt_path: str = "keys/salt.bin", aad: bytes = None):

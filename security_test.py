@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════╗
-║     AT-Wallet — Security Attack Demo Script      ║
+║     SEC-Wallet — Security Attack Demo Script      ║
 ║  Chạy: python3 security_test.py                  ║
 ╚══════════════════════════════════════════════════╝
 Test tất cả các cơ chế bảo mật qua Terminal.
@@ -230,7 +230,7 @@ def test_send_to_admin(token):
 # ─────────────────────────────────────────────────────────────────────────────
 def summary():
     print(f"\n{G}{'═'*56}{RESET}")
-    print(f"{BOLD}{G}  KẾT QUẢ TỔNG HỢP — AT-Wallet Security Demo{RESET}")
+    print(f"{BOLD}{G}  KẾT QUẢ TỔNG HỢP — SEC-Wallet Security Demo{RESET}")
     print(f"{G}{'═'*56}{RESET}")
     tests = [
         ("TEST 1", "Đăng nhập & JWT",          "PASS"),
@@ -251,7 +251,7 @@ def summary():
 if __name__ == "__main__":
     print(f"""
 {M}{'╔'+'═'*54+'╗'}
-{'║':1}{B}{BOLD}     AT-Wallet — Security Attack Demo Script          {RESET}{M}║
+{'║':1}{B}{BOLD}     SEC-Wallet — Security Attack Demo Script          {RESET}{M}║
 {'║':1}{DIM}  Mô phỏng các kiểu tấn công & kiểm tra cơ chế bảo vệ  {RESET}{M}║
 {'╚'+'═'*54+'╝'}{RESET}
 """)

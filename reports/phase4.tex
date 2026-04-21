@@ -31,7 +31,7 @@
 \begin{center}
     \vspace*{1cm}
     \huge \textbf{BÁO CÁO ĐỒ ÁN TỐT NGHIỆP} \\
-    \Large \textbf{Thiết kế Hệ thống Cơ sở Dữ liệu và Luồng Dữ liệu \\ Lõi Bảo mật cho AT-Wallet} \\
+    \Large \textbf{Thiết kế Hệ thống Cơ sở Dữ liệu và Luồng Dữ liệu \\ Lõi Bảo mật cho SEC-Wallet} \\
     \vspace{0.3cm}
     \textit{Giai đoạn 4: Mô hình hóa ERD (Entity-Relationship) và DFD (Data Flow)} \\
     \vspace{0.4cm}
@@ -56,7 +56,7 @@ Sau khi hoàn thiện lõi bảo mật (Security Core) bằng Mật mã đườn
 ---
 
 \section{Mô hình Thực thể Liên kết (ERD - Database Schema)}
-Hệ thống AT-Wallet được cấu trúc bởi 5 thực thể cốt lõi. Mọi dữ liệu nhạy cảm đều được mã hóa hoặc băm trước khi lưu trữ.
+Hệ thống SEC-Wallet được cấu trúc bởi 5 thực thể cốt lõi. Mọi dữ liệu nhạy cảm đều được mã hóa hoặc băm trước khi lưu trữ.
 
 \subsection{1. Thực thể Khách hàng (Users)}
 Bảng lưu trữ thông tin định danh của khách hàng. Không lưu mật khẩu gốc (Plaintext).
@@ -166,7 +166,7 @@ Các bảng trong cơ sở dữ liệu được rắp nối chặt chẽ theo ng
 Các luồng dữ liệu mô tả sự tương tác giữa các thành phần.
 
 \subsection{DFD Mức Ngữ cảnh (Level 0 - Context Diagram)}
-Nhìn nhận hệ thống từ góc độ tổng quan nhất. Hình dưới đây phác họa luồng giao tiếp cốt lõi giữa các \textbf{Tác nhân ngoài (External Entities)} và \textbf{Hệ thống trung tâm (AT-Wallet Security Core)}.
+Nhìn nhận hệ thống từ góc độ tổng quan nhất. Hình dưới đây phác họa luồng giao tiếp cốt lõi giữa các \textbf{Tác nhân ngoài (External Entities)} và \textbf{Hệ thống trung tâm (SEC-Wallet Security Core)}.
 
 \begin{figure}[H]
     \centering
@@ -178,7 +178,7 @@ Nhìn nhận hệ thống từ góc độ tổng quan nhất. Hình dưới đâ
     ]
         % Nodes
         \node[entity] (sender) {Người gửi};
-        \node[process, right=of sender] (system) {0.0\\AT-Wallet\\Security Core};
+        \node[process, right=of sender] (system) {0.0\\SEC-Wallet\\Security Core};
         \node[entity, right=of system] (receiver) {Người nhận};
         
         % Arrows

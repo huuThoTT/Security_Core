@@ -101,7 +101,7 @@ class AdvancedSecurityDecryptor:
 
             # 2. ECDH Shared Secret Recovery (Receiver Static Private X Sender Ephemeral Public)
             shared_secret = key_agreement(static_priv=rec_kex_priv, static_pub=ephemeral_pub, kdf=lambda x: x)
-            master_key = HKDF(shared_secret, 64, b"AT-Wallet-Salt", SHA256)
+            master_key = HKDF(shared_secret, 64, b"SEC-Wallet-Salt", SHA256)
             enc_key = master_key[:32]
 
             # 3. Parse Envelope & Replay Check

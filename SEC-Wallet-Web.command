@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 # Set Python search path so local 'app' package is found
 export PYTHONPATH=$PYTHONPATH:.
 
-echo "▶ Khởi động AT-Wallet Security Core (Bản Web)..."
+echo "▶ Khởi động SEC-Wallet Security Core (Bản Web)..."
 echo "------------------------------------------------"
 /opt/anaconda3/bin/python3 run_web.py
 

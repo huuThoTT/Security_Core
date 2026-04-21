@@ -1,6 +1,6 @@
-# AT-Wallet — Secure Cryptocurrency Wallet Simulator
+# SEC-Wallet — Secure Cryptocurrency Wallet Simulator
 
-Đồ án AT-Wallet là một ví điện tử mô phỏng, được thiết kế để áp dụng các kỹ thuật mật mã nâng cao trong việc bảo mật giao dịch, bảo vệ quyền riêng tư và phát hiện/ngăn chặn các hành vi tấn công phổ biến.
+Đồ án SEC-Wallet là một ví điện tử mô phỏng, được thiết kế để áp dụng các kỹ thuật mật mã nâng cao trong việc bảo mật giao dịch, bảo vệ quyền riêng tư và phát hiện/ngăn chặn các hành vi tấn công phổ biến.
 
 ## Tính Năng Bảo Mật Cốt Lõi
 
@@ -38,7 +38,7 @@ Mở terminal tại thư mục gốc của đồ án và chạy lệnh sau để
 pip install -r requirements.txt
 ```
 
-### 3. Chạy Server Mô Phỏng (AT-Wallet Backend)
+### 3. Chạy Server Mô Phỏng (SEC-Wallet Backend)
 Mở Terminal, di chuyển tới thư mục gốc, và khởi động Uvicorn Server:
 ```bash
 python3 -m uvicorn app.main:app --port 8000
