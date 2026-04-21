@@ -35,7 +35,7 @@
 Mở terminal tại thư mục gốc của đồ án và chạy lệnh sau để tải các thư viện mật mã & server:
 
 ```bash
-pip install fastapi "uvicorn[standard]" cryptography argon2-cffi pyotp python-jose passlib sqlalchemy
+pip install -r requirements.txt
 ```
 
 ### 3. Chạy Server Mô Phỏng (AT-Wallet Backend)

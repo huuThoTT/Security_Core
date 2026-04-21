@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+cryptography
+argon2-cffi
+pyotp
+python-jose[cryptography]
+passlib[bcrypt]
+sqlalchemy
+slowapi
+requests
+python-multipart
