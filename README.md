@@ -52,7 +52,7 @@ Sau khi Server báo chạy thành công, truy cập trình duyệt web vào:
 - **Giao diện Hacker (Attacker Demo):** `http://127.0.0.1:8000/static/attacker.html` (Bảng điều khiển trực quan dành riêng cho việc test Replay Attack).
 
 ### 5. Dùng Terminal Để Test Attack Tự Động (Kịch Bản Mẫu)
-Để tiết kiệm thời gian chấm bài và thể hiện các biện pháp an ninh chạy hậu trường, nhóm đã tạo riêng một **Script Test tự động**. Script này mô phỏng các kiểu tấn công như Brute force, Tamper (giả mạo dữ liệu), Replay (phát lại) và Forgery (ký số sai).
+Để tiết kiệm thời gian chấm bài và thể hiện các biện pháp an ninh chạy hậu trường, tôi đã tạo riêng một **Script Test tự động**. Script này mô phỏng các kiểu tấn công như Brute force, Tamper (giả mạo dữ liệu), Replay (phát lại) và Forgery (ký số sai).
 
 Trong khi Server **vẫn đang chạy**, bạn mở thêm một tab terminal khác và chạy:
 ```bash
