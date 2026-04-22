@@ -14,7 +14,7 @@
 \usepackage{hyperref}
 \usepackage[most]{tcolorbox}
 \usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, shadow}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, shadow, calc}
 
 % --- Cấu hình lề và khoảng cách ---
 \geometry{margin=1in, top=1in, bottom=1in}
@@ -45,8 +45,8 @@
 % --- Cấu hình Header/Footer ---
 \pagestyle{fancy}
 \fancyhf{}
-\lhead{Báo cáo Đồ án Tổng hợp}
-\rhead{SEC-Wallet Security Core}
+\lhead{Báo cáo Tổng hợp Đồ án Tốt nghiệp}
+\rhead{SEC-Wallet: Security-First Digital Wallet}
 \cfoot{\thepage}
 
 \begin{document}
@@ -55,111 +55,158 @@
 \begin{titlepage}
     \centering
     \vspace*{1cm}
-    {\huge \textbf{TRƯỜNG ĐẠI HỌC CỦA BẠN} \par}
-    {\Large \textbf{KHOA CÔNG NGHỆ THÔNG TIN} \par}
+    {\huge \textbf{KHOA CÔNG NGHỆ THÔNG TIN} \par}
+    {\Large \textbf{CHUYÊN NGÀNH AN TOÀN THÔNG TIN} \par}
     \vspace{2cm}
-    {\huge \textbf{BÁO CÁO TỔNG HỢP ĐỒ ÁN} \par}
+    {\huge \textbf{BÁO CÁO TỔNG HỢP CUỐI KỲ} \par}
     \vspace{1cm}
-    {\Huge \textbf{HỆ THỐNG VÍ ĐIỆN TỬ BẢO MẬT \\ SEC-WALLET} \par}
+    {\Huge \textbf{XÂY DỰNG HỆ THỐNG VÍ ĐIỆN TỬ BẢO MẬT \\ SEC-WALLET (V2.0)} \par}
     \vspace{2cm}
     \textbf{Sinh viên thực hiện:} \\
-    Nguyễn Trần Thái Sơn - [MSSV] \\
     Thái Hữu Thọ - 22127400 \\
+    \vspace{1cm}
+    \textbf{Giảng viên hướng dẫn:} \\
+    Nguyễn Đình Thúc \\
+    Ngô Đình Hy \\
     \vfill
-    {\large \today \par}
+    {\large Thành phố Hồ Chí Minh, \today \par}
 \end{titlepage}
 
 \tableofcontents
 \newpage
 
-\chapter{Tổng quan Dự án và Yêu cầu (GD1)}
-\section{Giới thiệu Đồ án}
-Dự án **SEC-Wallet** được xây dựng với mục tiêu thiết lập một nền tảng ví điện tử mô phỏng, áp dụng các kỹ thuật mật mã học hiện đại nhằm bảo vệ giao dịch tài chính trước các mối đe dọa an ninh mạng. Trọng tâm của dự án là **Security Core** – một thư viện mật mã lõi xử lý mọi quy trình từ sinh khóa, trao đổi khóa cho đến mã hóa và ký số.
+\chapter{Phân tích Yêu cầu và Mục tiêu (GD1)}
+\section{Bối cảnh dự án}
+Trong kỷ nguyên số, các ứng dụng ví điện tử trở thành mục tiêu hàng đầu của tội phạm mạng. Đồ án **SEC-Wallet** tập trung vào việc hiện thực hóa các lớp bảo vệ mật mã học "quốc phòng" cho giao dịch tài chính cá nhân.
 
-\section{Yêu cầu An ninh Thông tin}
-Hệ thống được thiết kế để thỏa mãn 4 mục tiêu an ninh cơ bản:
+\section{Mục tiêu An ninh (CIA + N)}
+Hệ thống được thiết kế để giải quyết 4 trụ cột an ninh:
 \begin{itemize}
-    \item \textbf{Tính bí mật (Confidentiality)}: Mã hóa AES-256-GCM.
-    \item \textbf{Tính toàn vẹn (Integrity)}: Galois Counter Mode (GCM) Auth Tag.
-    \item \textbf{Tính xác thực (Authenticity)}: Chữ ký số EdDSA.
-    \item \textbf{Tính chống chối bỏ (Non-repudiation)}: Ký số trên nền tảng Ed25519.
+    \item \textbf{Confidentiality (Tính bí mật)}: Ngăn chặn nghe lén thông tin giao dịch bằng mã hóa AES-256-GCM.
+    \item \textbf{Integrity (Tính toàn vẹn)}: Đảm bảo dữ liệu không bị thay đổi trên đường truyền thông qua Authentication Tag.
+    \item \textbf{Availability (Tính khả dụng)}: Hệ thống hoạt động ổn định và chống tấn công từ chối dịch vụ (DoS) bằng Rate Limiting.
+    \item \textbf{Non-repudiation (Chống chối bỏ)}: Ký số Ed25519 ràng buộc trách nhiệm pháp lý cho mỗi giao dịch.
 \end{itemize}
 
 \chapter{Kiến trúc Hệ thống và Cơ sở Dữ liệu (GD2 \& GD4)}
-\section{Mô hình Thực thể Liên kết (ERD)}
-Hệ thống quản lý dữ liệu thông qua 5 thực thể chính trong SQLite (\texttt{sec\_wallet.db}):
-\begin{itemize}
-    \item \textbf{Users}: Định danh, băm mật khẩu (PBKDF2-SHA256, 600k rounds) và Salt.
-    \item \textbf{Wallets}: Số dư đã được mã hóa tĩnh bằng AES Master Key.
-    \item \textbf{KeyStore}: Khóa công khai ECC (Ed25519 cho chữ ký, Curve25519 cho KEX).
-    \item \textbf{Transactions}: Kén sắt bảo mật (Encrypted Payloads), AuthTag, Nonce, Signature.
-    \item \textbf{SecurityLogs}: Ghi lại các nỗ lực tấn công (Replay, Tamper, Forgery).
-\end{itemize}
 
-\section{Sơ đồ Luồng Dữ liệu (DFD)}
-Hệ thống sử dụng DFD Level 1 để mô tả quy trình trao đổi khóa và mã hóa:
-\begin{enumerate}
-    \item \textbf{1.0 Quản lý danh tính}: Băm mật khẩu và nạp khóa public vào KeyStore.
-    \item \textbf{2.0 Mã hóa Giao dịch}: Thỏa thuận khóa ECDH và đóng gói Kén sắt.
-    \item \textbf{3.0 Giải mã & Xác thực}: Kiểm tra toàn vẹn và chữ ký trước khi giải ngân.
-    \item \textbf{4.0 Giám sát An ninh}: Cơ chế Fail-Secure phát hiện và chặn đứng tấn công.
-\end{enumerate}
+\section{Mô hình Thực thể Liên kết (ERD) Cập nhật}
+Cơ sở dữ liệu SQLite (\texttt{sec\_wallet.db}) đã được mở rộng để hỗ trợ các tính năng bảo mật nâng cao.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tikzpicture}[
+        node distance=1.5cm and 1cm,
+        table/.style={rectangle, draw=black, thick, fill=blue!5, text width=5cm, align=left, font=\small},
+        header/.style={fill=blue!20, font=\bfseries\small},
+        arrow/.style={-{Stealth[length=3mm]}, thick}
+    ]
+        % Nodes
+        \node[table] (users) {
+            \textbf{USERS} \\
+            - id (PK) \\
+            - username (U) \\
+            - password\_hash \\
+            - payment\_pin\_hash \\
+            - \textbf{totp\_secret} \\
+            - \textbf{failed\_login\_count} \\
+            - salt
+        };
+
+        \node[table, right=of users] (wallets) {
+            \textbf{WALLETS} \\
+            - id (PK) \\
+            - user\_id (FK) \\
+            - encrypted\_balance \\
+            - status
+        };
+
+        \node[table, below=of users, yshift=-1cm] (transactions) {
+            \textbf{TRANSACTIONS} \\
+            - id (PK) \\
+            - sender\_id (FK-U) \\
+            - receiver\_id (FK-U) \\
+            - encrypted\_payload \\
+            - auth\_tag \\
+            - nonce \\
+            - signature \\
+            - \textbf{ephemeral\_pub} \\
+            - \textbf{aad}
+        };
+
+        \node[table, right=of transactions] (logs) {
+            \textbf{SECURITY\_LOGS} \\
+            - id (PK) \\
+            - event\_type \\
+            - severity \\
+            - \textbf{ip\_address} \\
+            - actor\_user\_id (FK)
+        };
+
+        % Connections
+        \draw[arrow] (users) -- (wallets);
+        \draw[arrow] (users) -- (transactions);
+        \draw[arrow] (users) -- (logs);
+    \end{tikzpicture}
+    }
+    \caption{Mô hình ERD Cuối cùng của SEC-Wallet}
+\end{figure}
+
+\section{Sơ đồ Luồng Dữ liệu (DFD) Nâng cao}
+Luồng dữ liệu tích hợp thêm bước **Xác thực 2 lớp (2FA)** và **Giám sát an ninh thời gian thực**.
 
 \chapter{Thực thi Lõi Bảo mật (GD3 Implementation)}
-Lõi bảo mật (Security Core) bao gồm 5 hàm chức năng chính:
 
-\section{1. Sinh hạ tầng khóa (generate\_ecc\_keys)}
-Sử dụng Ed25519 cho chữ ký và Curve25519 cho trao đổi khóa. Khóa bí mật được bảo vệ bằng mật khẩu thông qua PBKDF2.
+\section{1. Mã hóa xác thực với AAD (AES-GCM-AAD)}
+Hệ thống sử dụng trường \texttt{aad} để ràng buộc các metadata (như Transaction ID) vào gói tin mã hóa, giúp ngăn chặn việc hoán đổi gói tin giữa các phiên làm việc khác nhau.
 
-\section{2. Thỏa thuận và Dẫn xuất khóa (perform\_ecdh\_hkdf)}
-Sử dụng ECDH để tạo Shared Secret và HKDF để tách thành khóa mã hóa và khóa xác thực 32-byte độc lập.
+\section{2. Perfect Forward Secrecy (PFS)}
+Với trường \texttt{ephemeral\_pub} trong bảng giao dịch, hệ thống đảm bảo rằng nếu khóa static của người dùng bị lộ trong tương lai, các giao dịch cũ vẫn không thể bị giải băm vì mỗi lần thỏa thuận khóa đều sử dụng một cặp khóa tạm thời (Ephemeral Key).
 
-\section{3. Đóng gói Bảo mật (encrypt\_and\_sign)}
-\begin{lstlisting}[language=python]
-# Core Encryption Snippet
-cipher = AES.new(enc_key, AES.MODE_GCM)
-ciphertext, tag = cipher.encrypt_and_digest(payload)
-signature = signer.sign(data)
-\end{lstlisting}
+\chapter{Tính năng Nâng cao (V2.0 Enhancements)}
 
-\section{4. Giải mã và Kiểm định (decrypt\_and\_verify)}
-Quy trình lọc 4 lớp:
-1. **Kiểm tra Nonce**: Chống tấn công phát lại.
-2. **Xác thực AES-GCM**: Chống sửa đổi dữ liệu (MAC check).
-3. **Kiểm tra Freshness**: Đối chiếu Timestamp (sliding window 300s).
-4. **Xác minh EdDSA**: Chống giả mạo chữ ký.
-
-\chapter{Tính năng Nâng cao và Bảo trì (GD5 Maintenance)}
-\section{1. Hệ thống Yêu cầu Thanh toán (Payment Request)}
-Bổ sung tính năng cho phép người nhận yêu cầu giao dịch. Logic được bảo vệ bằng mã PIN thanh toán (\texttt{payment\_pin}) riêng biệt.
-
-\section{2. Xác thực 2 Lớp (TOTP - 2FA)}
-Tích hợp Google Authenticator để xác thực 2 bước cho các giao dịch quan trọng.
-
-\section{3. Bảo trì và Hoàn thiện (Maintenance Types)}
+\section{1. Xác thực 2 Lớp (TOTP)}
+Hệ thống sử dụng tiêu chuẩn RFC 6238 để sinh mã OTP.
 \begin{itemize}
-    \item \textbf{Corrective}: Đã sửa lỗi ánh xạ \texttt{aad} và lỗi xác minh mã PIN thanh toán.
-    \item \textbf{Adaptive}: Chuyển đổi từ Desktop App sang Web App (FastAPI) và SQLite.
-    \item \textbf{Perfective}: Đồng bộ hóa UX Modal bảo mật cho toàn bộ tính năng ví.
-    \item \textbf{Preventive}: Nâng cấp băm Master Key lên 600,000 vòng theo chuẩn NIST.
+    \item \textbf{Setup}: Người dùng quét mã QR để lưu \texttt{totp_secret}.
+    \item \textbf{Verification}: Mọi giao dịch chuyển tiền đều yêu cầu OTP 6 chữ số từ Google Authenticator.
 \end{itemize}
 
-\chapter{Kiểm định và Đánh giá (GD5 Testing)}
-\section{Kịch bản Kiểm thử Đối kháng (TC-01 đến TC-08)}
-Hệ thống đã trải qua các bài test an ninh nghiêm ngặt:
+\section{2. Hệ thống Yêu cầu Thanh toán (Payment Requests)}
+Tính năng cho phép khởi tạo yêu cầu nợ giữa các ví. 
 \begin{itemize}
-    \item \textbf{TC-04/05 (MITM/Tampering)}: Sửa đổi Ciphertext hoặc Tag đều bị GCM phát hiện. **Status: PASS**.
-    \item \textbf{TC-06 (Forgery)}: Giả mạo chữ ký EdDSA bị từ chối ngay lập tức. **Status: PASS**.
-    \item \textbf{TC-07 (Replay)}: Gửi lại gói tin đã dùng bị hệ thống Nonce Store chặn đứng. **Status: PASS**.
+    \item \textbf{Request}: Tạo bản ghi Transaction với trạng thái \textit{Pending}.
+    \item \textbf{Fulfill}: Người trả tiền nhập **Payment PIN** (Argon2) để ký số và thực thi chuyển tiền.
 \end{itemize}
 
-\section{Hiệu năng Hệ thống (Benchmarking)}
-- **PBKDF2 (600k rounds)**: ~0.49 giây (Đạt chuẩn cân bằng Security/UX).
-- **Mã hóa AES-GCM**: ~0.016 giây/MB.
-- **Thỏa thuận khóa ECDH**: < 0.001 giây.
+\chapter{Kiểm định và Bảo trì (GD5)}
 
-\chapter*{Kết luận}
-\addcontentsline{toc}{chapter}{Kết luận}
-Sản phẩm **SEC-Wallet** là một hệ thống ví điện tử hoàn chỉnh, đạt tiêu chuẩn an ninh cao cấp thông qua việc kết hợp các thuật toán mật mã học hiện đại nhất. Hệ thống không chỉ có khả năng thực thi giao dịch mà còn có khả năng tự phòng thủ và lưu vết an ninh toàn diện.
+\section{Kết quả Kiểm thử Đối kháng (security\_test.py)}
+Script tự động đã xác thực 8 kịch bản tấn công:
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{ID} & \textbf{Kịch bản tấn công} & \textbf{Kết quả} \\ \hline
+    TEST 1 & Đăng nhập & JWT & PASS \\ \hline
+    TEST 2 & Brute Force (Account Lockout) & PASS \\ \hline
+    TEST 3 & Giao dịch hợp lệ (PFS) & PASS \\ \hline
+    TEST 4 & Replay Attack (Nonce Store) & PASS \\ \hline
+    TEST 5 & Tamper Attack (AES-GCM Auth) & PASS \\ \hline
+    TEST 6 & Forgery Attack (EdDSA Sign) & PASS \\ \hline
+    TEST 7 & JWT Forgery & PASS \\ \hline
+    TEST 8 & Business Rule (Admin Protect) & PASS \\ \hline
+    \end{tabular}
+    \caption{Bảng Tổng hợp Kết quả Kiểm thử An ninh}
+\end{table}
+
+\section{Hoạt động Bảo trì Hệ thống}
+- **Adaptive**: Di chuyển toàn bộ logic từ môi trường Local sang FastAPI Web.
+- **Preventive**: Nâng cấp độ phức tạp của PBKDF2 lên mức an toàn tuyệt đối (600,000 vòng).
+
+\chapter*{Kết luận và Hướng phát triển}
+\addcontentsline{toc}{chapter}{Kết luận và Hướng phát triển}
+Đồ án **SEC-Wallet** không chỉ dừng lại ở mức mô phỏng mà đã tiến sát tới các tiêu chuẩn của hệ thống ví điện tử thực tế về mặt an toàn mật mã. Trong tương lai, hệ thống có thể tích hợp thêm kiến trúc Microservices và cơ chế Multi-sig để tăng cường hơn nữa khả năng bảo vệ tài sản người dùng.
 
 \end{document}
