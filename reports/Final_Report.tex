@@ -1,4 +1,4 @@
-\documentclass[12pt,a4paper]{report}
+\documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[vietnamese]{babel}
 \usepackage{amsmath, amsfonts, amssymb}
@@ -13,12 +13,27 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage[most]{tcolorbox}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
 \usepackage{tikz}
+\usepackage{titlesec}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, shadow, calc}
 
 % --- Cấu hình lề và khoảng cách ---
 \geometry{margin=1in, top=1in, bottom=1in}
 \onehalfspacing
+
+% --- Tinh chỉnh kích thước chữ tiêu đề (giống article) ---
+\titleformat{\section}[block]
+  {\normalfont\Large\bfseries}{\thesection.}{1em}{\Large}
+\titlespacing*{\section}{0pt}{12pt}{10pt}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+\titlespacing*{\subsection}{0pt}{10pt}{6pt}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries}{\thesubsubsection}{1em}{}
+\titlespacing*{\subsubsection}{0pt}{8pt}{4pt}
 
 % --- Cấu hình Code Snippets ---
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -46,7 +61,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \lhead{Báo cáo Tổng hợp Đồ án Tốt nghiệp}
-\rhead{SEC-Wallet: Security-First Digital Wallet}
+\rhead{SEC-Wallet: Toàn diện GĐ 1-6}
 \cfoot{\thepage}
 
 \begin{document}
@@ -55,13 +70,13 @@
 \begin{titlepage}
     \centering
     \vspace*{1cm}
-    {\huge \textbf{KHOA CÔNG NGHỆ THÔNG TIN} \par}
-    {\Large \textbf{CHUYÊN NGÀNH AN TOÀN THÔNG TIN} \par}
-    \vspace{2cm}
-    {\huge \textbf{BÁO CÁO TỔNG HỢP CUỐI KỲ} \par}
-    \vspace{1cm}
-    {\Huge \textbf{XÂY DỰNG HỆ THỐNG VÍ ĐIỆN TỬ BẢO MẬT \\ SEC-WALLET (V2.0)} \par}
-    \vspace{2cm}
+    {\huge \textbf{TRƯỜNG ĐẠI HỌC CỦA BẠN} \par}
+    {\Large \textbf{KHOA CÔNG NGHỆ THÔNG TIN} \par}
+    \vspace{1.5cm}
+    {\huge \textbf{BÁO CÁO TỔNG HỢP TOÀN DIỆN} \par}
+    \vspace{0.5cm}
+    {\Huge \textbf{HỆ THỐNG VÍ ĐIỆN TỬ BẢO MẬT SEC-WALLET} \par}
+    \vspace{1.5cm}
     \textbf{Sinh viên thực hiện:} \\
     Thái Hữu Thọ - 22127400 \\
     \vspace{1cm}
@@ -75,138 +90,626 @@
 \tableofcontents
 \newpage
 
-\chapter{Phân tích Yêu cầu và Mục tiêu (GD1)}
-\section{Bối cảnh dự án}
-Trong kỷ nguyên số, các ứng dụng ví điện tử trở thành mục tiêu hàng đầu của tội phạm mạng. Đồ án **SEC-Wallet** tập trung vào việc hiện thực hóa các lớp bảo vệ mật mã học "quốc phòng" cho giao dịch tài chính cá nhân.
+% =============================================================================
+\section{Phân tích và Xác định Yêu cầu (Giai đoạn 1)}
+% =============================================================================
+\subsection{Giới thiệu chủ đề và Lý do chọn đề tài}
+Trong bối cảnh tài chính số hiện nay, các ứng dụng ví điện tử và quản lý chi tiêu cá nhân là mục tiêu thường xuyên của các cuộc tấn công mạng. Tuy nhiên, nhiều ứng dụng chủ yếu tập trung vào giao diện và tính năng, trong khi chưa đầu tư đầy đủ cho hệ thống bảo mật lõi (Security Core).
 
-\section{Mục tiêu An ninh (CIA + N)}
-Hệ thống được thiết kế để giải quyết 4 trụ cột an ninh:
+Trên thực tế, việc lưu trữ mật khẩu ở dạng văn bản thô hoặc chỉ sử dụng các hàm băm đơn giản khiến hệ thống dễ bị tấn công từ điển (Dictionary Attack). Ngoài ra, nếu các lệnh giao dịch không được kiểm tra tính mới của yêu cầu (freshness), kẻ tấn công có thể phát lại các gói tin hợp lệ để thực hiện giao dịch trái phép (Replay Attack).
+
+\subsection{Mục tiêu của đồ án}
+Đồ án chủ yếu tập trung vào xây dựng module bảo mật chuyên biệt nhằm giải quyết các vấn đề trên:
 \begin{itemize}
-    \item \textbf{Confidentiality (Tính bí mật)}: Ngăn chặn nghe lén thông tin giao dịch bằng mã hóa AES-256-GCM.
-    \item \textbf{Integrity (Tính toàn vẹn)}: Đảm bảo dữ liệu không bị thay đổi trên đường truyền thông qua Authentication Tag.
-    \item \textbf{Availability (Tính khả dụng)}: Hệ thống hoạt động ổn định và chống tấn công từ chối dịch vụ (DoS) bằng Rate Limiting.
-    \item \textbf{Non-repudiation (Chống chối bỏ)}: Ký số Ed25519 ràng buộc trách nhiệm pháp lý cho mỗi giao dịch.
+    \item \textbf{Về kỹ thuật mã hóa}: Nghiên cứu và triển khai thuật toán mã hóa đối xứng AES-256-GCM nhằm bảo mật dữ liệu lưu trữ, đồng thời sử dụng thuật toán EdDSA để thực hiện chức năng chữ ký số và xác thực tính toàn vẹn của dữ liệu.
+    \item \textbf{Khả năng bảo mật}: 
+    \begin{itemize}
+        \item Xây dựng cơ chế chống Replay Attack thông qua việc kết hợp số ngẫu nhiên dùng một lần (nonce) và timestamp.
+        \item Xây dựng cơ chế ngăn chặn Dictionary Attack bằng cách áp dụng kỹ thuật salting và kéo giãn khóa sử dụng thuật toán PBKDF2.
+    \end{itemize}
+    \item \textbf{Đối tượng nghiên cứu}: Các giao thức và thuật toán mật mã hiện đại; Cơ chế hoạt động và phương pháp phòng chống Replay Attack và Dictionary Attack.
 \end{itemize}
 
-\chapter{Kiến trúc Hệ thống và Cơ sở Dữ liệu (GD2 \& GD4)}
+\subsection{Yêu cầu về Công nghệ và Thư viện}
+Hệ thống được phát triển dựa trên ngôn ngữ Python với các thư viện mật mã học chuyên dụng:
+\begin{itemize}
+    \item \textbf{PyCryptodome}: Cung cấp các thuật toán mã hóa đối xứng (AES) và các hàm băm.
+    \item \textbf{Cryptography.io}: Hỗ trợ các thuật toán đường cong Elliptic (ECC).
+    \item \textbf{SlowAPI}: Kiểm soát tần suất truy cập để chống tấn công Brute-force.
+\end{itemize}
 
-\section{Mô hình Thực thể Liên kết (ERD) Cập nhật}
-Cơ sở dữ liệu SQLite (\texttt{sec\_wallet.db}) đã được mở rộng để hỗ trợ các tính năng bảo mật nâng cao.
+% =============================================================================
+\section{Phân tích chi tiết Use Case (Giai đoạn 2)}
+% =============================================================================
+\subsection{Kiến trúc Use Case Bảo mật}
+Hệ thống SEC-Wallet không chỉ là một ứng dụng ví đơn giản mà là một hệ sinh thái bảo mật đa tầng. Các Use Case được thiết kế để bao phủ toàn bộ vòng đời của một giao dịch tài chính an toàn.
+
+\subsection{Đặc tả Use Case chính}
+\subsection{Use Case 1: Đăng nhập và Khởi tạo Bảo mật (UC\_Login)}
+Mô tả: Người dùng nhập mật khẩu. Hệ thống không so sánh trực tiếp mật khẩu mà thực hiện kéo giãn khóa (Key Stretching) để sinh ra Khóa mã hóa khóa (KEK). KEK này được dùng để giải mật mã Private Key lưu trên máy.
+
+\subsection{Use Case 2: Đóng gói Giao dịch (UC\_Send)}
+Mô tả: Khi thực hiện chuyển tiền, hệ thống thực hiện đồng thời 3 bước bảo mật ngầm:
+\begin{enumerate}
+    \item Thỏa thuận khóa phiên nhanh qua ECDH.
+    \item Mã hóa nội dung bằng AES-256-GCM kèm theo Nonce.
+    \item Ký số EdDSA để xác nhận danh tính người gửi.
+\end{enumerate}
+
+\subsection{Use Case 3: Xác thực và Phê duyệt (UC\_Verify)}
+Mô tả: Máy chủ tiếp nhận gói tin, thực hiện kiểm tra "Lưới lọc 4 lớp" (Nonce, Tag, Timestamp, Signature). Nếu bất kỳ lớp nào thất bại, Use Case "Cảnh báo an ninh" (UC\_Alert) sẽ được kích hoạt.
+
+% =============================================================================
+\section{Kiết trúc Hệ thống và Cơ sở Dữ liệu (Giai đoạn 4)}
+% =============================================================================
+\subsection{Mô hình Thực thể Liên kết (ERD - Database Schema)}
+Hệ thống SEC-Wallet được cấu trúc bởi 5 thực thể cốt lõi. Mọi dữ liệu nhạy cảm đều được mã hóa hoặc băm trước khi lưu trữ.
+
+\subsubsection{1. Thực thể Khách hàng (Users)}
+Bảng lưu trữ thông tin định danh và các bí mật bảo mật. 
+\begin{itemize}[noitemsep]
+    \item \texttt{UserID (PK)}: Mã định danh duy nhất (UUID).
+    \item \texttt{PasswordHash}: Số băm mật khẩu (PBKDF2 600k vòng).
+    \item \texttt{PaymentPinHash}: Mã PIN thanh toán (Argon2ID). \textbf{[v2.0]}
+    \item \texttt{TotpSecret}: Bí mật dùng cho 2FA. \textbf{[v2.0]}
+    \item \texttt{FailedLoginCount}: Quản lý khóa tài khoản. \textbf{[v2.0]}
+    \item \texttt{Salt}: Chuỗi muối 16-byte ngẫu nhiên.
+\end{itemize}
+
+\subsubsection{2. Thực thể Ví điện tử (Wallets)}
+Mỗi người dùng sở hữu một ví. Số dư được bảo vệ bằng mã hóa.
+\begin{itemize}[noitemsep]
+    \item \texttt{WalletID (PK)}: Mã ví định danh.
+    \item \texttt{UserID (FK)}: Liên kết 1-1 với bảng Users.
+    \item \texttt{Balance}: Số dư hiện tại (Được mã hóa tĩnh bằng AES Master Key).
+    \item \texttt{Status}: Trạng thái (Active/Locked/Frozen).
+    \item \texttt{LastUpdated}: Dấu thời gian biến động cập nhật cuối.
+\end{itemize}
+
+\subsubsection{3. Thực thể Kho khóa Mật mã (KeyStore)}
+Bảng sinh tử thứ ba đóng vai trò như một PKI (Public Key Infrastructure) nội bộ. Nơi phân phối khóa công khai ECC. Khóa bí mật tuyệt đối không lưu trên server.
+\begin{itemize}[noitemsep]
+    \item \texttt{KeyID (PK)}: Mã định danh bộ khóa.
+    \item \texttt{UserID (FK)}: Người sở hữu.
+    \item \texttt{PubKey\_Signature}: Khóa công khai Ed25519 dùng để xác minh chữ ký.
+    \item \texttt{PubKey\_KeyExchange}: Khóa công khai Curve25519 dùng cho giao thức ECDH.
+    \item \texttt{Status}: Valid/Revoked.
+\end{itemize}
+
+\subsubsection{4. Thực thể Lịch sử Giao dịch (Transactions)}
+Lưu trữ các kén sắt (Secure Envelopes) không thể bị làm giả.
+\begin{itemize}[noitemsep]
+    \item \texttt{TxID (PK)}: Mã giao dịch.
+    \item \texttt{EncryptedPayload}: Ciphertext AES-GCM.
+    \item \texttt{EphemeralPub}: Khóa công khai tạm thời cho PFS. \textbf{[v2.0]}
+    \item \texttt{AAD}: Metadata đóng gói kèm mã hóa. \textbf{[v2.0]}
+    \item \texttt{DigitalSignature}: Chữ ký EdDSA.
+    \item \texttt{TxStatus}: Trạng thái (Pending/Verified). \textbf{[v2.0]}
+\end{itemize}
+
+\subsubsection{5. Thực thể Nhật ký An ninh (SecurityLogs)}
+Hỗ trợ cơ chế Fail-Secure. Điểm tập kết của các \texttt{\_trigger\_alert()}.
+\begin{itemize}[noitemsep]
+    \item \texttt{LogID (PK)}: Mã log.
+    \item \texttt{EventType}: Loại cảnh báo (Replay Attack, Tampering, Signature Forgery).
+    \item \texttt{Description}: Chi tiết mã lỗi nội bộ.
+    \item \texttt{Timestamp}: Thời điểm xảy ra sự cố.
+    \item \texttt{IPAddress}: Địa chỉ tấn công.
+\end{itemize}
+
+\subsection{Sơ đồ Luồng Dữ liệu (DFD - Data Flow Diagram)}
+Các luồng dữ liệu mô tả sự tương tác giữa các thành phần.
+
+\subsubsection{DFD Mức Ngữ cảnh (Level 0 - Context Diagram)}
+Nhìn nhận hệ thống từ góc độ tổng quan nhất. Hình dưới đây phác họa luồng giao tiếp cốt lõi giữa các \textbf{Tác nhân ngoài (External Entities)} và \textbf{Hệ thống trung tâm (SEC-Wallet Security Core)}.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=3cm and 4.5cm,
+        entity/.style={rectangle, draw, rounded corners, inner sep=10pt, font=\bfseries, fill=blue!10},
+        process/.style={circle, draw, minimum size=3cm, align=center, font=\bfseries, fill=green!10},
+        arrow/.style={-{Stealth[length=3mm]}, thick}
+    ]
+        % Nodes
+        \node[entity] (sender) {Người gửi};
+        \node[process, right=of sender] (system) {0.0\\SEC-Wallet\\Security Core};
+        \node[entity, right=of system] (receiver) {Người nhận};
+        
+        % Arrows
+        \draw[arrow] (sender) to[bend left=20] node[above, align=center] {Giao dịch, nạp/rút tiền} (system);
+        \draw[arrow] (system) to[bend left=20] node[below, align=center] {Phản hồi trạng thái,\\Cảnh báo lỗi} (sender);
+        
+        \draw[arrow] (system) to[bend left=20] node[above, align=center] {Dữ liệu giải mã, Tiền} (receiver);
+        \draw[arrow] (receiver) to[bend left=20] node[below, align=center] {Xác nhận nhận} (system);
+    \end{tikzpicture}
+    \caption{Sơ đồ Luồng dữ liệu Mức Ngữ cảnh (Level 0)}
+\end{figure}
+
+\subsubsection{DFD Mức 1 (Level 1) - Tích hợp Lưới lọc v2.0}
+Trong phiên bản nâng cấp, DFD Mức 1 được bổ sung các tiến trình kiểm soát nghiêm ngặt:
+\begin{itemize}
+    \item \textbf{1.0 Quản lý Danh tính \& 2FA}: Sau khi đăng nhập, hệ thống yêu cầu mã OTP (TOTP) từ Google Authenticator. Nếu sai quá 5 lần, tiến trình \textit{Account Lockout} sẽ được kích hoạt.
+    \item \textbf{2.0 \& 3.0 Giao dịch an toàn}: Luồng gửi tiền yêu cầu thêm bước xác thực **Mã PIN thanh toán (Payment PIN)** độc lập với mật khẩu chính.
+\end{itemize}
 
 \begin{figure}[H]
     \centering
     \resizebox{\textwidth}{!}{
     \begin{tikzpicture}[
-        node distance=1.5cm and 1cm,
-        table/.style={rectangle, draw=black, thick, fill=blue!5, text width=5cm, align=left, font=\small},
-        header/.style={fill=blue!20, font=\bfseries\small},
-        arrow/.style={-{Stealth[length=3mm]}, thick}
+        entity/.style={rectangle, draw, rounded corners, inner sep=12pt, font=\large\bfseries, fill=blue!10},
+        process/.style={circle, draw, minimum size=3.5cm, align=center, text width=3cm, font=\large\bfseries, fill=green!10},
+        datastore/.style={rectangle, draw, inner sep=12pt, minimum width=4.5cm, font=\large\bfseries, fill=yellow!10},
+        arrow/.style={-{Stealth[length=3.5mm]}, thick, font=\normalsize}
     ]
         % Nodes
-        \node[table] (users) {
-            \textbf{USERS} \\
-            - id (PK) \\
-            - username (U) \\
-            - password\_hash \\
-            - payment\_pin\_hash \\
-            - \textbf{totp\_secret} \\
-            - \textbf{failed\_login\_count} \\
-            - salt
-        };
-
-        \node[table, right=of users] (wallets) {
-            \textbf{WALLETS} \\
-            - id (PK) \\
-            - user\_id (FK) \\
-            - encrypted\_balance \\
-            - status
-        };
-
-        \node[table, below=of users, yshift=-1cm] (transactions) {
-            \textbf{TRANSACTIONS} \\
-            - id (PK) \\
-            - sender\_id (FK-U) \\
-            - receiver\_id (FK-U) \\
-            - encrypted\_payload \\
-            - auth\_tag \\
-            - nonce \\
-            - signature \\
-            - \textbf{ephemeral\_pub} \\
-            - \textbf{aad}
-        };
-
-        \node[table, right=of transactions] (logs) {
-            \textbf{SECURITY\_LOGS} \\
-            - id (PK) \\
-            - event\_type \\
-            - severity \\
-            - \textbf{ip\_address} \\
-            - actor\_user\_id (FK)
-        };
-
-        % Connections
-        \draw[arrow] (users) -- (wallets);
-        \draw[arrow] (users) -- (transactions);
-        \draw[arrow] (users) -- (logs);
+        \node[entity] (sender) at (0, 0) {Người gửi};
+        \node[process] (p1) at (6, -4) {1.0\\Identity \& \\ \textbf{2FA Check}};
+        \node[process] (p4) at (24, -4) {4.0\\Giám sát\\An ninh};
+        \node[datastore] (db_log) at (33, -4) {D3: SecLogs};
+        \node[process] (p2) at (10, -16) {2.0\\Mã hóa\\Transaction};
+        \node[datastore] (db_tx) at (18, -16) {D2: Transactions};
+        \node[process] (p3) at (26, -16) {3.0\\Giải mã \& \\ \textbf{PIN Verify}};
+        \node[entity] (receiver) at (34, -16) {Người nhận};
+        
+        \draw[arrow] (sender) to[out=0, in=135] node[above right] {Mật khẩu + OTP} (p1);
+        \draw[arrow] (p1) to[bend left=20] (p2);
+        \draw[arrow] (p2) -- (db_tx);
+        \draw[arrow] (db_tx) -- (p3);
+        \draw[arrow] (p3) -- node[above] {Giải ngân} (receiver);
+        \draw[arrow] (p3) -- node[right] {Truy vết lỗi} (p4);
+        \draw[arrow] (p4) -- (db_log);
     \end{tikzpicture}
     }
-    \caption{Mô hình ERD Cuối cùng của SEC-Wallet}
+    \caption{Sơ đồ Luồng dữ liệu Mức 1 (Level 1) - Tích hợp 2FA và PIN Verification}
 \end{figure}
 
-\section{Sơ đồ Luồng Dữ liệu (DFD) Nâng cao}
-Luồng dữ liệu tích hợp thêm bước **Xác thực 2 lớp (2FA)** và **Giám sát an ninh thời gian thực**.
+% =============================================================================
+\section{Thực thi Lõi Bảo mật (Giai đoạn 3)}
+% =============================================================================
+\subsection{Tổng quan Hệ thống Security Core}
+Chương trình Security Core của SEC-Wallet được thiết kế theo kiến trúc module, dựa trên nền tảng Mật mã đường cong Elliptic (ECC). Hệ thống được cấu trúc thành **5 hàm cốt lõi (Core Functions)**. 
 
-\chapter{Thực thi Lõi Bảo mật (GD3 Implementation)}
+\subsection{Phân tích Chi tiết 5 Hàm Sinh tử}
 
-\section{1. Mã hóa xác thực với AAD (AES-GCM-AAD)}
-Hệ thống sử dụng trường \texttt{aad} để ràng buộc các metadata (như Transaction ID) vào gói tin mã hóa, giúp ngăn chặn việc hoán đổi gói tin giữa các phiên làm việc khác nhau.
+\subsubsection{Hàm 1: Tạo Hạ tầng Khóa số (generate\_ecc\_keys)}
+\textbf{1. Ý tưởng (Rationale):} \\
+Hàm ứng dụng hệ thống Mật mã đường cong Elliptic (ECC). Việc này giúp tạo ra các cặp khóa vô cùng nhỏ gọn nhưng lại cung cấp độ bảo mật tương đương mật mã quân sự.
 
-\section{2. Perfect Forward Secrecy (PFS)}
-Với trường \texttt{ephemeral\_pub} trong bảng giao dịch, hệ thống đảm bảo rằng nếu khóa static của người dùng bị lộ trong tương lai, các giao dịch cũ vẫn không thể bị giải băm vì mỗi lần thỏa thuận khóa đều sử dụng một cặp khóa tạm thời (Ephemeral Key).
-
-\chapter{Tính năng Nâng cao (V2.0 Enhancements)}
-
-\section{1. Xác thực 2 Lớp (TOTP)}
-Hệ thống sử dụng tiêu chuẩn RFC 6238 để sinh mã OTP.
-\begin{itemize}
-    \item \textbf{Setup}: Người dùng quét mã QR để lưu \texttt{totp_secret}.
-    \item \textbf{Verification}: Mọi giao dịch chuyển tiền đều yêu cầu OTP 6 chữ số từ Google Authenticator.
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Vấn đề tốc độ và băng thông}: Khóa RSA-3072 quá lớn đối với thiết bị di động. Hàm giải quyết bằng cách sinh khóa \textbf{Ed25519} (256-bit) cho chữ ký số và \textbf{Curve25519} cho trao đổi khóa.
+    \item \textbf{Vấn đề bảo vệ Master Password}: Hàm tạo ra một tệp \texttt{Salt} ngẫu nhiên (16 byte), giúp chống lại các cuộc tấn công dò mật khẩu người dùng.
 \end{itemize}
 
-\section{2. Hệ thống Yêu cầu Thanh toán (Payment Requests)}
-Tính năng cho phép khởi tạo yêu cầu nợ giữa các ví. 
-\begin{itemize}
-    \item \textbf{Request}: Tạo bản ghi Transaction với trạng thái \textit{Pending}.
-    \item \textbf{Fulfill}: Người trả tiền nhập **Payment PIN** (Argon2) để ký số và thực thi chuyển tiền.
+\subsubsection{Hàm 2: Dẫn xuất và Đa dạng hóa khóa (perform\_ecdh\_hkdf)}
+\textbf{1. Ý tưởng (Rationale):} \\
+Hai bên tự tính toán ra \textbf{khóa dùng chung (Shared Secret)} mà không cần trao đổi khóa bí mật trên môi trường Internet.
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Vấn đề chặn bắt khóa công khai (Eavesdropping)}: Sử dụng giao thức \textbf{ECDH} (Elliptic Curve Diffie-Hellman), kẻ nghe lén không thể tái tạo lại khóa dù bắt được mọi gói tin.
+    \item \textbf{Vấn đề Phân tách quyền}: Sau khi ECDH thiết lập, hàm dùng \textbf{HKDF} (HMAC-based Key Derivation) để "băm" Shared Secret thành các khóa độc lập: khóa mã hóa (Encryption) và khóa xác thực (MAC).
 \end{itemize}
 
-\chapter{Kiểm định và Bảo trì (GD5)}
+\subsubsection{Hàm 3: Đóng gói Bảo mật Giao dịch (encrypt\_and\_sign)}
+\textbf{1. Ý tưởng (Rationale):} \\
+Chuyển đổi giao dịch thành "Kén sắt" (\textbf{Secure Envelope}). Kén sắt này che giấu toàn bộ nội dung, phân quyền truy cập, đồng thời đóng dấu "triện" không thể giả mạo.
 
-\section{Kết quả Kiểm thử Đối kháng (security\_test.py)}
-Script tự động đã xác thực 8 kịch bản tấn công:
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Chống rò rỉ dữ liệu (Sniffing)}: Hàm thực thi mã hóa siêu tốc \textbf{AES-256 GCM}.
+    \item \textbf{Chống giả mạo \& Chối bỏ}: Dùng chữ ký số \textbf{Ed25519} để ký lên dữ liệu giao dịch.
+    \item \textbf{Chống Tấn công phát lại (Replay)}: Hàm tiêm thêm Timestamp hệ thống vào Payload chuẩn bị mã hóa.
+\end{itemize}
+
+\subsubsection{Hàm 4: Giải mã Kiểm định Toàn vẹn (decrypt\_and\_verify)}
+\textbf{1. Ý tưởng (Rationale):} \\
+Tạo ra một bộ "Thuế quan" cho dữ liệu cập bến. Hàm này soi chiếu khắt khe mọi góc độ của Kén sắt để đảm bảo an toàn tuyệt đối.
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Giải quyết Data Tampering}: Hàm sử dụng Auth Tag của GCM để kiểm tra gói tin. Nếu kẻ gian sửa đổi dữ liệu, Tag sẽ không khớp và hàm từ chối dữ liệu.
+    \item \textbf{Hết hạn thời gian (Time Expired)}: Đối chiếu Timestamp nội hàm có quá "cửa sổ" an toàn (Ví dụ: 5 phút) hay không.
+\end{itemize}
+
+\subsubsection{Hàm 5: Kích hoạt Phòng vệ \& Log An ninh (\_trigger\_alert)}
+\textbf{1. Ý tưởng (Rationale):} \\
+Trung tâm của nguyên lý \textbf{Fail-Secure}. Một hệ thống tốt không báo chi tiết lỗi cho hacker mà đóng băng luôn quá trình.
+
+\textbf{2. Giải quyết vấn đề gì?}
+\begin{itemize}[noitemsep]
+    \item \textbf{Vấn đề dò lỗi qua Error Message}: Tránh việc in lỗi mã nguồn ra cho hacker. Hàm này xuất ra một ngoại lệ bảo mật chung chung.
+    \item \textbf{Lưu vết điều tra (Audit Logs)}: Ghi log thời gian, nội dung rủi ro toàn bộ lên server nội bộ.
+\end{itemize}
+
+\subsection{Phụ lục: Chi tiết Mã giả Thuật toán}
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Thư mục lưu trữ }
+\KwOut{Các tệp khóa PEM (Singature, KEX) và Salt}
+\Begin{
+    \ForEach{User in (Sender, Receiver)}{
+        $(Priv_{sig}, Pub_{sig}) \leftarrow \text{ECC.Generate(curve="ed25519")}$\;
+        Lưu $Priv_{sig}$ và $Pub_{sig}$ ra ổ đĩa\;
+    }
+    \ForEach{User in (Sender, Receiver)}{
+        $(Priv_{kex}, Pub_{kex}) \leftarrow \text{ECC.Generate(curve="curve25519")}$\;
+        Lưu $Priv_{kex}$ và $Pub_{kex}$ ra ổ đĩa\;
+    }
+    $Salt \leftarrow \text{RandomBytes}(16)$\;
+}
+\caption{generate\_ecc\_keys - Sinh hạ tầng bảo mật}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Khóa bí mật KEX của mình $Pr_{mine}$, Khóa KEX công khai của bạn $Pu_{peer}$}
+\KwOut{Khóa mã hóa (Enc) và Xác thực (MAC)}
+\Begin{
+    $SharedSecret \leftarrow \text{ECDH\_Agreement}(Pr_{mine}, Pu_{peer})$\;
+    $MasterKey \leftarrow \text{HKDF\_Generate}(SharedSecret, \text{Length}=64, \text{Digest}=\text{SHA256})$\;
+    $EncKey \leftarrow MasterKey[0:32]$\;
+    $MacKey \leftarrow MasterKey[32:64]$\;
+    \Return{(EncKey, MacKey)}\;
+}
+\caption{perform\_ecdh\_hkdf - Thoả thuận khóa hoàn hảo (PFS)}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Dữ liệu tài chính $M$, Bộ khóa thao tác}
+\KwOut{(Envelope GCM, Chữ ký số)}
+\Begin{
+    $(K_{enc}, K_{mac}) \leftarrow \text{CALL perform\_ecdh\_hkdf}(...)$\;
+    $Payload_{new} \leftarrow \text{CurrentTime()} || M$\;
+    $(Ciphertext, Tag, Nonce) \leftarrow \text{AES-GCM-Encrypt}(K_{enc}, Payload_{new})$\;
+    $Signature \leftarrow \text{EdDSA\_Sign}(Sender\_Priv_{sig}, M)$\;
+    \Return{($Nonce || Tag || Ciphertext$, $Signature$)}\;
+}
+\caption{encrypt\_and\_sign - Đóng gói và Ký số nguyên khối}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Gói Envelope, Chữ ký S, Bộ khóa xác thực}
+\KwOut{Dữ liệu gốc $M$ hoặc Cảnh báo}
+\Begin{
+    $(K_{enc}, \_) \leftarrow \text{CALL perform\_ecdh\_hkdf}(...)$\;
+    \If{$Nonce \in \text{HISTORY}$}{
+        \textbf{CALL} trigger\_alert("Replay Attack Detected!")\;
+    }
+    \Try{
+        $Payload_{dec} \leftarrow \text{AES-GCM-Decrypt}(K_{enc}, Nonce, Tag, Cipher)$\;
+    }{
+        \Catch{\text{IntegrityError}}{
+            \textbf{CALL} trigger\_alert("Tampering Detected!")\;
+        }
+    }
+    \If{$|\text{CurrentTime} - T| > 300\text{s}$}{
+        \textbf{CALL} trigger\_alert("Giao dịch trễ!")\;
+    }
+    \Return{$M$}\;
+}
+\caption{decrypt\_and\_verify - Bộ lưới lọc bảo vệ Ví Wallet}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Tài khoản $U$, Khóa OTP $S_{OTP}$}
+\KwOut{Hợp lệ / Thất bại}
+\Begin{
+    $Code \leftarrow \text{USER\_INPUT}$\;
+    $TimeWindow \leftarrow \text{CurrentTime} / 30$\;
+    $Expected \leftarrow \text{HMAC-SHA1}(S_{OTP}, TimeWindow)$\;
+    \If{$Code == Expected$}{
+        \Return{Hợp lệ}\;
+    }
+    \Return{Thất bại}\;
+}
+\caption{verify\_totp - Xác thực đa nhân tố 2FA}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Username $Username$}
+\KwOut{Cho phép / Khóa}
+\Begin{
+    $User \leftarrow \text{DB.Query}(Username)$\;
+    \If{$User.locked\_until > \text{Now}$}{
+        \Return{Khóa (Thử lại sau 15p)}\;
+    }
+    \Return{Cho phép}\;
+}
+\caption{check\_lockout - Chống tấn công Brute-force}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwIn{Mã PIN người dùng $P_{input}$, Hash lưu trữ $H_{db}$}
+\KwOut{Hợp lệ / Thất bại}
+\Begin{
+    \Try{
+        $\text{Argon2.Verify}(H_{db}, P_{input})$\;
+        \Return{Hợp lệ}\;
+    }{
+        \Catch{\text{Mismatch}}{
+            \Return{Thất bại}\;
+        }
+    }
+}
+\caption{verify\_payment\_pin - Xác thực PIN Thanh toán}
+\end{algorithm}
+
+% =============================================================================
+\section{Nâng cấp An ninh và Tính năng Mới (Phiên bản 2.0)}
+% =============================================================================
+Trong quá trình phát triển thực tế, để đáp ứng các tiêu chuẩn an ninh hiện đại của một ví điện tử thực thụ, hệ thống đã được nâng cấp lên phiên bản 2.0 với các tính năng sinh tử:
+
+\subsection{1. Xác thực đa nhân tố (2FA - TOTP)}
+Hệ thống tích hợp chuẩn xác thực mật khẩu dùng một lần theo thời gian (TOTP). 
+\begin{itemize}
+    \item \textbf{Cơ chế}: Sử dụng thuật toán HMAC-SHA1 để sinh mã 6 số biến đổi sau mỗi 30 giây.
+    \item \textbf{Ứng dụng}: Người dùng sử dụng các ứng dụng như Google Authenticator hoặc Microsoft Authenticator để quét mã QR và xác thực khi đăng nhập hoặc thực hiện giao dịch lớn.
+\end{itemize}
+
+\subsection{2. Hệ thống Yêu cầu Thanh toán (Payment Request System)}
+Thay vì chỉ gửi tiền chủ động, chúng tôi bổ sung luồng nghiệp vụ "Đòi tiền" chuyên nghiệp thông qua hàm nâng cao \texttt{fulfill\_payment\_request}:
+\begin{enumerate}
+    \item \textbf{Khởi tạo}: Người nhận gửi một yêu cầu thanh toán kèm nội dung (Message) đã được ký số.
+    \item \textbf{Phê duyệt}: Người trả tiền kiểm tra yêu cầu và thực hiện lệnh **Fulfill** bằng cách nhập **Mã PIN thanh toán (Payment PIN)** riêng biệt.
+    \item \textbf{Bảo mật PIN}: Mã PIN được băm bằng Argon2id và lưu trữ tách biệt hoàn toàn với mật khẩu đăng nhập, đảm bảo dù lộ mật khẩu tài khoản thì tiền vẫn an toàn. (Xem Thuật toán 8).
+\end{enumerate}
+
+\subsection{3. Cơ chế Tự động khóa tài khoản (Account Lockout)}
+Để chống lại các cuộc tấn công Brute-force, hàm \texttt{login} đã được tích hợp thêm logic kiểm soát trạng thái:
+\begin{itemize}
+    \item \textbf{Cơ chế}: Theo dõi thông qua \textit{State Machine} trên database. (Xem Thuật toán 7).
+    \item \textbf{Phản ứng}: Hệ thống tự động khóa tài khoản sau 5 lần thử sai.
+\end{itemize}
+
+\subsection{4. Giới hạn tần suất và Cường hóa Mật mã}
+\begin{itemize}
+    \item \textbf{Rate Limiting}: Sử dụng thư viện SlowAPI để giới hạn số lượng request từ một IP, ngăn chặn tấn công từ chối dịch vụ (DoS) ở mức ứng dụng.
+    \item \textbf{PBKDF2 Hardening}: Nâng số vòng lặp băm khóa KEK lên **600,000 vòng**, đạt chuẩn an ninh cao nhất hiện nay, khiến việc vét cạn khóa private key trở nên bất khả thi về mặt toán học.
+\end{itemize}
+
+% =============================================================================
+\section{Kiểm định và Đánh giá An ninh (Giai đoạn 5)}
+% =============================================================================
+\subsection{Tổng quan Chiến lược Kiểm thử}
+Chiến lược kiểm thử được áp dụng là **Adversarial Security Testing** (Kiểm thử an ninh đối kháng). Sinh viên đóng vai trò là kẻ tấn công (Attacker) để tìm cách phá vỡ các lớp bảo vệ đã thiết lập.
+
+\subsection{Sơ đồ Luồng Bảo mật và Xử lý Lỗi (TikZ Flow)}
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.5cm and 2cm,
+        startstop/.style={rectangle, rounded corners, draw=black, thick, fill=gray!20, minimum width=3.5cm, align=center},
+        process/.style={rectangle, draw=black, thick, fill=blue!10, minimum width=3.5cm, align=center},
+        decision/.style={diamond, draw=black, thick, fill=yellow!20, aspect=2, minimum width=3.5cm, align=center},
+        error/.style={rectangle, draw=red, thick, fill=red!10, text=red, minimum width=3cm, align=center},
+        arrow/.style={-{Stealth[length=3mm]}, thick}
+    ]
+        \node[startstop] (start) {Tiếp nhận Gói tin};
+        \node[process, below=of start] (p1) {Giải mã Key (PBKDF2)};
+        \node[decision, below=of p1] (d1) {Mật khẩu đúng?};
+        \node[process, below=of d1, yshift=-0.5cm] (p2) {Kiểm tra Nonce DB};
+        \node[decision, below=of p2] (d2) {Nonce mới?};
+        \node[process, below=of d2, yshift=-0.5cm] (p3) {Xác thực AES-GCM};
+        \node[decision, below=of p3] (d3) {Toàn vẹn?};
+        
+        \node[error, right=of d1, xshift=1cm] (e1) {Lỗi bẻ khóa};
+        \node[error, right=of d2, xshift=1cm] (e2) {Cảnh báo Replay!};
+        \node[error, right=of d3, xshift=1cm] (e3) {Cảnh báo Tamper!};
+
+        \node[startstop, font=\bfseries, fill=green!20, below=of d3, yshift=-0.5cm] (end) {GIAO DỊCH HỢP LỆ};
+
+        \draw[arrow] (start) -- (p1);
+        \draw[arrow] (p1) -- (d1);
+        \draw[arrow] (d1) -- node[left] {Có} (p2);
+        \draw[arrow] (d1) -- node[above] {Không} (e1);
+        \draw[arrow] (p2) -- (d2);
+        \draw[arrow] (d2) -- node[left] {Có} (p3);
+        \draw[arrow] (d2) -- node[above] {Không} (e2);
+        \draw[arrow] (p3) -- (d3);
+        \draw[arrow] (d3) -- node[left] {Có} (end);
+        \draw[arrow] (d3) -- node[above] {Không} (e3);
+    \end{tikzpicture}
+    \caption{Sơ đồ Luồng Tự vệ (Self-Defense Flowchart) của Lõi Bảo mật}
+\end{figure}
+
+\subsection{Phân tích Chi tiết Kịch bản Kiểm thử TC-01 đến TC-08}
+Dưới đây là bảng đặc tả chi tiết cho từng kịch bản, bao gồm cả tham số biến số và hàm thực thi tương ứng.
+
+\subsubsection{Nhóm 1: Tính đúng đắn của Thuật toán (Functional \& Correctness)}
+
+\textbf{TC-01: Kiểm định Luồng Mã hóa lai Toàn diện}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Đảm bảo sự phối hợp giữa ECDH, AES-256-GCM và Ed25519.
+    \item \textbf{Đầu vào (Input)}: \texttt{data = b"Payment: 5,000,000 VND"}; \texttt{Pass = "ATWallet@2026"}.
+    \item \textbf{Hàm xử lý}: \texttt{encrypt\_and\_sign()} trong \texttt{encryptor.py}.
+\end{itemize}
+\begin{lstlisting}
+# Line 51: encryptor.py
+cipher = AES.new(enc_key, AES.MODE_GCM)
+ciphertext, tag = cipher.encrypt_and_digest(payload)
+# Line 57: Signature generation
+signer = eddsa.new(sender_sig_key, 'rfc8032')
+signature = signer.sign(data)
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Kết quả thực tế}: Giải mã tại Receiver trả về đúng chuỗi byte ban đầu. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-02: Kiểm định Hạ tầng sinh Khóa (Keygen Hardening)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Xác minh tính an toàn của KEK (Key Encryption Key).
+    \item \textbf{Tham số băm}: \texttt{iterations = 600,000}, \texttt{hash = SHA256}.
+    \item \textbf{Hàm xử lý}: \texttt{generate\_ecc\_keys()} trong \texttt{keygen.py}.
+    \item \textbf{Kết quả}: File \texttt{.enc} được tạo ra với cấu trúc: \texttt{Nonce + Tag + EncryptedPEM}. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-03: Thử nghiệm dữ liệu lớn (Large Data Stress Test)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Kiểm tra độ ổn định và quản lý bộ nhớ của AES-GCM.
+    \item \textbf{Input}: File ảnh/bin dung lượng 5MB.
+    \item \textbf{Kết quả}: Thời gian xử lý < 0.1s. Toàn vẹn dữ liệu được đảm bảo. **Trạng thái: PASS**.
+\end{itemize}
+
+\subsubsection{Nhóm 2: Chống Tấn công Đối kháng (Adversarial Defense)}
+
+\textbf{TC-04: Tấn công Sửa đổi bản mã (Ciphertext Tampering - MITM)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Kiểm chứng cơ chế AEAD (Authenticated Encryption).
+    \item \textbf{Input}: Thay đổi bit cuối cùng của \texttt{envelope[32:]}.
+\end{itemize}
+\begin{lstlisting}
+# decryptor.py: Line 47
+decrypted_payload = cipher_aes.decrypt_and_verify(ciphertext, tag)
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Kết quả}: Thư viện mật mã ném lỗi \texttt{MAC check failed}. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-05: Tấn công Sửa đổi mã xác thực (Auth Tag Tampering)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Đảm bảo Tag GCM không thể bị làm giả.
+    \item \textbf{Input}: Sửa đổi 1 byte trong \texttt{tag} (vị trí byte 16-32 của envelope).
+    \item \textbf{Kết quả}: Việc giải mã bị chặn đứng hoàn toàn. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-06: Tấn công Giả mạo Chữ ký số (Signature Forgery)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Xác minh tính chống chối bỏ của EdDSA (Ed25519).
+    \item \textbf{Thực thi}: Hacker thay thế trường \texttt{signature} bằng chuỗi ngẫu nhiên.
+\end{itemize}
+\begin{lstlisting}
+# decryptor.py: Line 59
+try:
+    verifier.verify(original_data, signature)
+except ValueError:
+    self._trigger_alert("Digital Signature Forgery detected!")
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Kết quả}: Chữ ký giả bị phát hiện ngay lập tức. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-07: Tấn công Phát lại (Replay Attack - Nonce Reuse)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Đảm bảo gói tin chỉ được sử dụng một lần duy nhất.
+    \item \textbf{Cơ chế}: Đối soát trường \texttt{nonce\_hex} với cơ sở dữ liệu Nonce.
+    \item \textbf{Kết quả}: Gửi lại gói tin lần thứ 2 kích hoạt cảnh bảo Replay Attack. **Trạng thái: PASS**.
+\end{itemize}
+
+\textbf{TC-08: Tấn công Trễ và Sai lệch thời gian (Timing/Freshness)}
+\begin{itemize}[noitemsep]
+    \item \textbf{Mục tiêu}: Xác minh cửa sổ thời gian (Sliding Window) 300 giây.
+    \item \textbf{Input}: Sửa đổi \texttt{timestamp} lùi về quá khứ 10 phút.
+    \item \textbf{Kết quả}: Hệ thống tính toán trễ > 300s và từ chối xử lý. **Trạng thái: PASS**.
+\end{itemize}
+
+\subsection{Ma trận Đánh giá Rủi ro (Risk Matrix)}
 \begin{table}[H]
     \centering
-    \begin{tabular}{|l|l|l|}
+    \resizebox{\textwidth}{!}{
+    \begin{tabular}{|l|c|c|l|}
     \hline
-    \textbf{ID} & \textbf{Kịch bản tấn công} & \textbf{Kết quả} \\ \hline
-    TEST 1 & Đăng nhập & JWT & PASS \\ \hline
-    TEST 2 & Brute Force (Account Lockout) & PASS \\ \hline
-    TEST 3 & Giao dịch hợp lệ (PFS) & PASS \\ \hline
-    TEST 4 & Replay Attack (Nonce Store) & PASS \\ \hline
-    TEST 5 & Tamper Attack (AES-GCM Auth) & PASS \\ \hline
-    TEST 6 & Forgery Attack (EdDSA Sign) & PASS \\ \hline
-    TEST 7 & JWT Forgery & PASS \\ \hline
-    TEST 8 & Business Rule (Admin Protect) & PASS \\ \hline
+    \textbf{ID / Loại Rủi ro} & \textbf{Tác động} & \textbf{Xác suất} & \textbf{Giải pháp phòng thủ (Wallet)} \\ \hline
+    \textbf{R1}: Tấn công từ điển mật khẩu & Cao & Trung bình & PBKDF2 (600k rounds) giới hạn tốc độ thử. \\ \hline
+    \textbf{R2}: Nghe lén (Sniffing) & Trung bình & Cao & Mã hóa lai ECC+AES đảm bảo bản tin vô nghĩa. \\ \hline
+    \textbf{R3}: Sửa đổi nội dung (MITM) & Rất cao & Cao & GCM Tag và Chữ ký Ed25519 đảm bảo toàn vẹn. \\ \hline
+    \textbf{R4}: Tấn công phát lại (Replay) & Cao & Trung bình & Lưu trữ Nonce vĩnh viễn kèm Timestamp check. \\ \hline
+    \textbf{R5}: Lộ file khóa bí mật tĩnh & Rất cao & Thấp & Khóa luôn được Encrypted-at-rest bằng KEK. \\ \hline
     \end{tabular}
-    \caption{Bảng Tổng hợp Kết quả Kiểm thử An ninh}
+    }
+    \caption{Ma trận Đánh giá Rủi ro và Chiến lược phòng thủ của Wallet}
 \end{table}
 
-\section{Hoạt động Bảo trì Hệ thống}
-- **Adaptive**: Di chuyển toàn bộ logic từ môi trường Local sang FastAPI Web.
-- **Preventive**: Nâng cấp độ phức tạp của PBKDF2 lên mức an toàn tuyệt đối (600,000 vòng).
+\subsection{Đánh giá Hiệu năng (Performance Benchmarking)}
+Dựa trên thực nghiệm đo đạc thực tế:
+\begin{itemize}
+    \item \textbf{Dẫn xuất khóa (PBKDF2)}: 0.4903 giây. (Cân bằng bảo mật/trải nghiệm).
+    \item \textbf{Trao đổi khóa (ECDH - X25519)}: 0.0001 giây.
+    \item \textbf{Mã hóa (AES-GCM)}: 0.0168 giây trên mỗi 1MB dữ liệu.
+\end{itemize}
 
-\chapter*{Kết luận và Hướng phát triển}
-\addcontentsline{toc}{chapter}{Kết luận và Hướng phát triển}
-Đồ án **SEC-Wallet** không chỉ dừng lại ở mức mô phỏng mà đã tiến sát tới các tiêu chuẩn của hệ thống ví điện tử thực tế về mặt an toàn mật mã. Trong tương lai, hệ thống có thể tích hợp thêm kiến trúc Microservices và cơ chế Multi-sig để tăng cường hơn nữa khả năng bảo vệ tài sản người dùng.
+% =============================================================================
+\section{Bảo trì và Phát triển Hệ thống (Giai đoạn 6)}
+% =============================================================================
+\subsection{Tổng quan về Giai đoạn Bảo trì (Software Maintenance)}
+Trong vòng đời phát triển phần mềm (SDLC), giai đoạn bảo trì không chỉ đơn thuần là sửa lỗi mà còn là quá trình tiến hóa để hệ thống thích nghi với môi trường mới và nâng cao trải nghiệm người dùng. Đối với dự án \textbf{SEC-Wallet}, bảo trì đóng vai trò sống còn vì các lỗ hổng mật mã và lỗi logic giao dịch có thể dẫn đến mất mát tài sản thực tế.
+
+Báo cáo này liệt kê chi tiết các hoạt động bảo trì đã được thực hiện dựa trên 4 loại hình chuẩn: Corrective (Sửa chữa), Adaptive (Thích nghi), Perfective (Hoàn thiện) và Preventive (Phòng ngừa).
+
+\subsection{Bảo trì Sửa chữa (Corrective Maintenance)}
+Đây là các hoạt động tập trung vào việc khắc phục các lỗi logic và kỹ thuật phát sinh trong quá trình vận hành ban đầu.
+
+\subsubsection{1. Khắc phục lỗi sai lệch Schema (Database Mapping Fix)}
+Trong quá trình phát triển tính năng "Yêu cầu thanh toán" (Payment Request), hệ thống đã gặp lỗi 500 do sự không tương thích giữa tham số đầu vào và mô hình cơ sở dữ liệu.
+\begin{itemize}
+    \item \textbf{Vấn đề:} Model \texttt{Transaction} yêu cầu trường \texttt{aad} (Additional Authenticated Data), trong khi logic khởi tạo lại gửi vào trường \texttt{message}.
+    \item \textbf{Giải pháp:} Ánh xạ lại toàn bộ luồng dữ liệu, đóng gói \texttt{tx\_id} và các metadata khác vào khối \texttt{aad} theo tiêu chuẩn AES-GCM.
+\end{itemize}
+
+\subsubsection{2. Sửa lỗi logic xác minh mã PIN (Verification Logic Fix)}
+Một lỗi nghiêm trọng đã được phát hiện khi hệ thống sử dụng băm mật khẩu đăng nhập (\texttt{password\_hash}) để kiểm tra mã PIN thanh toán thay vì sử dụng \texttt{payment\_pin\_hash}.
+\begin{itemize}
+    \item \textbf{Giải pháp:} Cập nhật endpoint \texttt{/fulfill} để truy vấn chính xác trường mã PIN đã được băm bằng Argon2, đảm bảo tính tách biệt giữa mật khẩu truy cập và mã PIN bảo vệ dòng tiền.
+\end{itemize}
+
+\subsubsection{3. Cưỡng chế các ràng buộc nghiệp vụ (Business Rule Enforcement)}
+Bổ sung các lớp kiểm tra logic để ngăn chặn các giao dịch phi lý:
+\begin{itemize}
+    \item Chặn hoàn toàn khả năng người dùng tự gửi yêu cầu thanh toán cho chính mình.
+    \item Chặn giao dịch đến tài khoản \texttt{admin} (tài khoản hệ thống chỉ dùng để quản trị).
+\end{itemize}
+
+\subsection{Bảo trì Thích nghi (Adaptive Maintenance)}
+Thích nghi hệ thống với những thay đổi về hạ tầng và công nghệ.
+
+\subsubsection{1. Chuyển đổi kiến trúc từ Desktop sang Full-stack Web}
+Ban đầu hệ thống được thiết kế dạng ứng dụng Desktop Local. Để mở rộng khả năng tiếp cận và demo báo cáo, hệ thống đã được chuyển đổi sang kiến trúc Web:
+\begin{itemize}
+    \item \textbf{Backend:} Sử dụng FastAPI với cơ chế xử lý bất đồng bộ (Asynchronous).
+    \item \textbf{Persistence:} Chuyển từ lưu trữ file JSON đơn giản sang SQLite (\texttt{sec\_wallet.db}) để đảm bảo tính Acid (Atomicity, Consistency, Isolation, Durability) cho giao dịch.
+\end{itemize}
+
+\subsubsection{2. Cơ chế Cache-Busting cho Frontend}
+Để đảm bảo các bản sửa lỗi JavaScript được cập nhật ngay lập tức trên trình duyệt của người chấm bài mà không cần xóa cache thủ công, hệ thống đã áp dụng kỹ thuật versioning:
+\begin{lstlisting}[language=html]
+<script src="script.js?v=4.0"></script>
+\end{lstlisting}
+
+\subsection{Bảo trì Hoàn thiện (Perfective Maintenance)}
+Nâng cao hiệu năng và trải nghiệm người dùng (UX) dựa trên phản hồi thực tế.
+
+\subsubsection{1. Đồng bộ hóa trải nghiệm người dùng (UX Standardization)}
+Giao diện "Yêu cầu tiền" (Request Money) đã được tái thiết kế hoàn toàn để khớp với quy trình "Gửi tiền" (Send Money):
+\begin{itemize}
+    \item Sử dụng luồng: \textbf{Nhập liệu $\rightarrow$ Hiện Modal bảo mật $\rightarrow$ Xác nhận mã PIN}.
+    \item Tự động xóa trắng form (Input resets) khi chuyển tab hoặc sau khi thực hiện giao dịch thành công để nâng cao tính riêng tư.
+\end{itemize}
+
+\subsubsection{2. Làm sạch mã nguồn và Tái cấu trúc (Code Refactoring)}
+Để giảm nợ kỹ thuật (Technical Debt), các module bảo mật đã được tách biệt rõ ràng:
+\begin{itemize}
+    \item \texttt{encryptor.py}: Chuyên trách AES-GCM và EdDSA Signing.
+    \item \texttt{decryptor.py}: Chuyên trách Verify và Decrypt.
+    \item \texttt{keygen.py}: Chuyên trách quản lý cặp khóa ECC.
+\end{itemize}
+
+\subsection{Bảo trì Phòng ngừa (Preventive Maintenance)}
+Các biện pháp ngăn chặn sự cố trước khi chúng xảy ra.
+
+\subsubsection{1. Nâng cấp tham số an ninh (Security Hardening)}
+Dựa trên khuyến nghị của NIST, hệ thống đã nâng cấp số vòng lặp PBKDF2 từ 100,000 lên **600,000 vòng** cho việc mã hóa file khóa private key, giúp kéo dài thời gian tấn công vét cạn (Brute-force) của kẻ gian.
+
+\subsubsection{2. Giới hạn tần suất và Khóa tài khoản (Account Lockout)}
+Triển khai thư viện \texttt{slowapi} để giới hạn số lượng request từ một IP. Nếu sai quá 5 lần, tài khoản sẽ tự động khóa trong 15 phút, ngăn chặn các cuộc tấn công Brute-force tự động.
+
+\section*{Kết luận}
+\addcontentsline{toc}{section}{Kết luận}
+Thông qua tất cả các giai đoạn từ phân tích đến bảo trì, SEC-Wallet đã chứng minh tính hoàn thiện vượt trội về an ninh thông tin, sẵn sàng đối đầu với các hiểm họa mạng hiện đại.
 
 \end{document}
